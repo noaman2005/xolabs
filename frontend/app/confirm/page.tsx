@@ -1,10 +1,10 @@
 "use client"
 
+import { Suspense, useState } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Link from "next/link"
-import { useState } from "react"
 
-export default function ConfirmPage() {
+function ConfirmPageInner() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const initialEmail = searchParams.get("email") ?? ""
@@ -88,5 +88,13 @@ export default function ConfirmPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ConfirmPage() {
+  return (
+    <Suspense fallback={null}>
+      <ConfirmPageInner />
+    </Suspense>
   )
 }
