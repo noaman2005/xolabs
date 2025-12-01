@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { CognitoJwtVerifier } from 'aws-jwt-verify'
-import { voiceStore } from '../../../../lib/features/voice/store'
 import type { VoiceEvent, VoiceParticipant } from '../../../../lib/features/voice/types'
+import {
+  registerParticipant,
+  unregisterParticipant,
+  listParticipants,
+  updateParticipantMute,
+  enqueueEvent,
+  enqueueEventForRoom,
+  dequeueEvents,
+  getRoomForConnection,
+} from '../../../../lib/features/voice/dynamodb'
 
 const USER_POOL_ID =
   process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID ??
@@ -17,9 +26,6 @@ const verifier = CognitoJwtVerifier.create({
   tokenUse: 'id',
   clientId: USER_POOL_CLIENT_ID,
 })
-
-// Store active WebSocket connections
-const connections = new Map<string, { ws: WebSocket; userId: string; email: string }>()
 
 /**
  * Verify Cognito token from Authorization header
@@ -46,45 +52,39 @@ async function verifyToken(authHeader: string | null): Promise<{ email: string; 
   }
 }
 
-/**
- * Broadcast a voice event to all participants in a room
- */
-function broadcastToRoom(
+async function broadcastToRoom(
   workspaceId: string,
   channelId: string,
   event: VoiceEvent,
-  excludeConnectionId?: string
-): void {
-  voiceStore.enqueueEventForRoom(workspaceId, channelId, event, excludeConnectionId)
-  const connectionIds = voiceStore.getConnectionsInRoom(workspaceId, channelId, excludeConnectionId)
-
-  connectionIds.forEach((connId: string) => {
-    const conn = connections.get(connId)
-    if (conn && conn.ws.readyState === WebSocket.OPEN) {
-      conn.ws.send(JSON.stringify(event))
-    }
-  })
+  excludeConnectionId?: string,
+): Promise<void> {
+  await enqueueEventForRoom(workspaceId, channelId, event, excludeConnectionId)
 }
 
-function sendEventToConnection(connectionId: string | undefined, event: VoiceEvent): void {
+async function sendEventToConnection(connectionId: string | undefined, event: VoiceEvent): Promise<void> {
   if (!connectionId) return
-  voiceStore.enqueueEvent(connectionId, event)
-  const conn = connections.get(connectionId)
-  if (conn && conn.ws.readyState === WebSocket.OPEN) {
-    conn.ws.send(JSON.stringify(event))
-  }
+  await enqueueEvent(connectionId, event)
 }
 
-function broadcastParticipantsUpdate(workspaceId: string, channelId: string, excludeConnectionId?: string) {
-  const participants = voiceStore.getParticipants(workspaceId, channelId)
-  broadcastToRoom(workspaceId, channelId, {
-    type: 'participants_update',
-    userId: 'system',
+async function broadcastParticipantsUpdate(
+  workspaceId: string,
+  channelId: string,
+  excludeConnectionId?: string,
+): Promise<void> {
+  const participants = await listParticipants(workspaceId, channelId)
+  await broadcastToRoom(
     workspaceId,
     channelId,
-    data: participants,
-    timestamp: Date.now(),
-  }, excludeConnectionId)
+    {
+      type: 'participants_update',
+      userId: 'system',
+      workspaceId,
+      channelId,
+      data: participants,
+      timestamp: Date.now(),
+    },
+    excludeConnectionId,
+  )
 }
 
 /**
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const room = voiceStore.getRoomForConnection(connectionId)
+  const room = await getRoomForConnection(connectionId)
   if (!room || room.workspaceId !== workspaceId || room.channelId !== channelId) {
     return NextResponse.json(
       { error: 'Connection not registered in this room' },
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const events = voiceStore.dequeueEvents(connectionId)
+  const events = await dequeueEvents(connectionId)
   return NextResponse.json({ success: true, events })
 }
 
@@ -168,10 +168,10 @@ export async function POST(request: NextRequest) {
         joinedAt: Date.now(),
       }
 
-      voiceStore.registerParticipant(workspaceId, channelId, participant.connectionId, participant)
+      await registerParticipant({ workspaceId, channelId, participant })
 
       // Broadcast user joined
-      broadcastToRoom(workspaceId, channelId, {
+      await broadcastToRoom(workspaceId, channelId, {
         type: 'user_joined',
         userId: user.sub,
         workspaceId,
@@ -180,10 +180,10 @@ export async function POST(request: NextRequest) {
         timestamp: Date.now(),
       })
 
-      broadcastParticipantsUpdate(workspaceId, channelId)
+      await broadcastParticipantsUpdate(workspaceId, channelId)
 
       // Send current participants to the joining user
-      const participants = voiceStore.getParticipants(workspaceId, channelId)
+      const participants = await listParticipants(workspaceId, channelId)
       return NextResponse.json({
         success: true,
         participants,
@@ -192,12 +192,11 @@ export async function POST(request: NextRequest) {
 
     case 'leave_voice': {
       const targetConnectionId = connectionId || user.sub
-      const roomInfo = voiceStore.getRoomForConnection(targetConnectionId)
-      const result = voiceStore.unregisterParticipant(targetConnectionId)
+      const result = await unregisterParticipant(targetConnectionId)
 
       if (result) {
         // Broadcast user left
-        broadcastToRoom(workspaceId, channelId, {
+        await broadcastToRoom(workspaceId, channelId, {
           type: 'user_left',
           userId: user.sub,
           workspaceId,
@@ -205,9 +204,8 @@ export async function POST(request: NextRequest) {
           data: result.participant,
           timestamp: Date.now(),
         })
-        if (roomInfo) {
-          broadcastParticipantsUpdate(roomInfo.workspaceId, roomInfo.channelId, targetConnectionId)
-        }
+
+        await broadcastParticipantsUpdate(workspaceId, channelId, targetConnectionId)
       }
 
       return NextResponse.json({ success: true })
@@ -218,17 +216,17 @@ export async function POST(request: NextRequest) {
     case 'candidate': {
       // Relay signaling data to specific peer
       const targetConnectionId = data?.targetConnectionId
-      sendEventToConnection(targetConnectionId, event)
+      await sendEventToConnection(targetConnectionId, event)
       return NextResponse.json({ success: true })
     }
 
     case 'mute':
     case 'unmute': {
       const isMuted = type === 'mute'
-      voiceStore.updateParticipantMute(workspaceId, channelId, connectionId || user.sub, isMuted)
+      await updateParticipantMute(workspaceId, channelId, connectionId || user.sub, isMuted)
 
       // Broadcast mute status change
-      broadcastToRoom(workspaceId, channelId, {
+      await broadcastToRoom(workspaceId, channelId, {
         type: isMuted ? 'mute' : 'unmute',
         userId: user.sub,
         workspaceId,
@@ -237,13 +235,13 @@ export async function POST(request: NextRequest) {
         timestamp: Date.now(),
       })
 
-      broadcastParticipantsUpdate(workspaceId, channelId)
+      await broadcastParticipantsUpdate(workspaceId, channelId)
 
       return NextResponse.json({ success: true })
     }
 
     case 'participants_update': {
-      const participants = voiceStore.getParticipants(workspaceId, channelId)
+      const participants = await listParticipants(workspaceId, channelId)
       return NextResponse.json({ success: true, participants })
     }
 
