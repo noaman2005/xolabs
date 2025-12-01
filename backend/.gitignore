@@ -1,0 +1,12 @@
+# Backend ignores
+node_modules
+dist
+.env*
+coverage
+npm-debug.log*
+yarn-error.log*
+
+# Editor/OS
+.DS_Store
+.idea
+.vscode

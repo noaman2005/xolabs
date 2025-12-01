@@ -1,0 +1,44 @@
+version: '3.9'
+
+services:
+  infra-api:
+    image: amazon/aws-sam-cli-emulation-image-nodejs20.x
+    command: sam local start-api --template /infra/template.yaml --host 0.0.0.0 --port 3001
+    working_dir: /app
+    volumes:
+      - ./:/app
+    ports:
+      - '3001:3001'
+    environment:
+      AWS_REGION: us-east-1
+
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    ports:
+      - '8000:8000'
+    command: -jar DynamoDBLocal.jar -inMemory -sharedDb
+
+  localstack:
+    image: localstack/localstack:latest
+    ports:
+      - '4566:4566'
+    environment:
+      SERVICES: s3
+      EDGE_PORT: 4566
+      AWS_DEFAULT_REGION: us-east-1
+
+  frontend:
+    build:
+      context: ./frontend
+    working_dir: /app
+    command: npm run dev
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_WS_URL: ws://localhost:3001
+      NEXT_PUBLIC_AWS_REGION: us-east-1
+    volumes:
+      - ./frontend:/app
+    ports:
+      - '3000:3000'
+    depends_on:
+      - infra-api

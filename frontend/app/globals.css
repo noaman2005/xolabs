@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  @apply bg-background text-gray-100 antialiased;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(34, 197, 94, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(15, 23, 42, 0.4) 0%, transparent 60%),
+    linear-gradient(135deg, #0f172a 0%, #111827 50%, #0a0e27 100%);
+  background-attachment: fixed;
+}
+
+.glass-panel {
+  @apply bg-white/[0.05] border border-white/[0.08] backdrop-blur-2xl shadow-[0_8px_32px_rgba(0,0,0,0.3)];
+}
+
+.glass-sidebar {
+  @apply bg-white/[0.03] border-r border-white/[0.08] backdrop-blur-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.1)];
+}
+
+.glass-topbar {
+  @apply bg-white/[0.04] border-b border-white/[0.08] backdrop-blur-2xl shadow-[0_4px_16px_rgba(0,0,0,0.2)];
+}
+
+.smooth-transition {
+  @apply transition-all duration-300;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glow-green {
+  @apply shadow-[0_0_20px_rgba(34,197,94,0.3)];
+}
+
+.glow-green-hover {
+  @apply hover:shadow-[0_0_24px_rgba(34,197,94,0.5)] hover:border-green-500/50;
+}
+
+.card-glass {
+  @apply bg-white/[0.04] border border-white/[0.1] rounded-2xl backdrop-blur-xl;
+}
+
+.btn-glass {
+  @apply bg-white/[0.08] border border-white/[0.15] rounded-lg backdrop-blur-md hover:bg-white/[0.12] smooth-transition;
+}
+
+.btn-accent {
+  @apply bg-green-500/80 hover:bg-green-500 text-black font-medium shadow-[0_0_20px_rgba(34,197,94,0.4)] hover:shadow-[0_0_30px_rgba(34,197,94,0.6)] smooth-transition;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/[0.1] rounded-full hover:bg-white/[0.2];
+}

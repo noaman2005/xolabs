@@ -1,0 +1,14 @@
+node_modules
+.next
+.out
+.env*
+.aws-sam
+cdk.out
+dist
+.DS_Store
+.idea
+.vscode
+coverage
+npm-debug.log*
+yarn-error.log*
+.aws

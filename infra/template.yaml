@@ -1,0 +1,406 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: XO Labs - Core Infrastructure
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Timeout: 20
+    MemorySize: 256
+    Tracing: Active
+    Architectures:
+      - x86_64
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+
+Resources:
+  XoLabsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub XoLabsTable-${Environment}
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+
+  RestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub xolabs-rest-${Environment}
+      StageName: !Ref Environment
+      Cors:
+        AllowMethods: "'*'"
+        AllowHeaders: "'*'"
+        AllowOrigin: "'*'"
+      TracingEnabled: true
+      EndpointConfiguration: REGIONAL
+
+  XoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub xolabs-users-${Environment}
+      UsernameAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+
+  XoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub xolabs-web-${Environment}
+      UserPoolId: !Ref XoUserPool
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+      GenerateSecret: false
+
+  FrontendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub xolabs-frontend-${Environment}
+
+  AttachmentsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub xolabs-attachments-${Environment}
+
+  AvatarsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub xolabs-user-avatars-${Environment}
+
+  AuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/auth.handler
+      Events:
+        AuthRoute:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /auth/validate
+            Method: get
+
+  AuthSignupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/auth-signup.handler
+      Environment:
+        Variables:
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        Signup:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /auth/signup
+            Method: post
+
+  AuthLoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/auth-login.handler
+      Environment:
+        Variables:
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        Login:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /auth/login
+            Method: post
+
+  AuthConfirmSignupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/auth-confirm-signup.handler
+      Environment:
+        Variables:
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        ConfirmSignup:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /auth/confirm-signup
+            Method: post
+
+  ListWorkspacesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/workspaces-list.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        GetWorkspaces:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces
+            Method: get
+
+  CreateWorkspaceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/workspaces-create.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        PostWorkspace:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces
+            Method: post
+
+  UpdateWorkspaceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/workspaces-update.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        PatchWorkspace:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}
+            Method: patch
+
+  DeleteWorkspaceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/workspaces-delete.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        DeleteWorkspace:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}
+            Method: delete
+
+  ListWorkspaceChannelsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/channels-list.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        GetChannels:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}/channels
+            Method: get
+
+  CreateWorkspaceChannelFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/channels-create.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        PostChannel:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}/channels
+            Method: post
+
+  UpdateWorkspaceChannelFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/channels-update.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        PatchChannel:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}/channels/{channelId}
+            Method: patch
+
+  DeleteWorkspaceChannelFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/channels-delete.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        DeleteChannel:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}/channels/{channelId}
+            Method: delete
+
+  WorkspaceInviteFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/workspaces-invite.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        InviteWorkspaceMember:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}/invite
+            Method: post
+
+  ListChannelMessagesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/messages-list.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        GetChannelMessages:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}/channels/{channelId}/messages
+            Method: get
+
+  CreateChannelMessageFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/messages-create.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        PostChannelMessage:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}/channels/{channelId}/messages
+            Method: post
+
+Outputs:
+  RestApiUrl:
+    Description: Base URL for REST API
+    Value: !Sub "https://${RestApi}.execute-api.${AWS::Region}.amazonaws.com/${Environment}"
+
+  XoLabsTableName:
+    Description: DynamoDB table name
+    Value: !Ref XoLabsTable
+
+  CognitoUserPoolId:
+    Description: Cognito user pool ID
+    Value: !Ref XoUserPool
+
+  CognitoClientId:
+    Description: Cognito app client ID
+    Value: !Ref XoUserPoolClient
+
+  FrontendBucketName:
+    Description: Frontend hosting bucket name
+    Value: !Ref FrontendBucket
+
+  AttachmentsBucketName:
+    Description: Attachments bucket name
+    Value: !Ref AttachmentsBucket
+
+  AvatarsBucketName:
+    Description: Avatars bucket name
+    Value: !Ref AvatarsBucket

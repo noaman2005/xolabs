@@ -1,0 +1,13 @@
+# Frontend ignores
+node_modules
+.next
+.out
+.env*
+coverage
+npm-debug.log*
+yarn-error.log*
+
+# Editor/OS
+.DS_Store
+.idea
+.vscode
