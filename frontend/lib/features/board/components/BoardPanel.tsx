@@ -23,22 +23,22 @@ export function BoardPanel({ columns, cards, isLoading, error, onCreateColumn, o
   }
 
   return (
-    <div className="glass-panel smooth-transition flex flex-1 flex-col rounded-3xl px-8 py-6 overflow-hidden">
+    <div className="glass-panel smooth-transition flex flex-1 flex-col rounded-0 lg:rounded-3xl px-4 lg:px-8 py-6 overflow-hidden animate-fade-in">
       {/* Header */}
-      <div className="mb-4 flex items-center justify-between border-b border-white/[0.08] pb-3">
+      <div className="mb-4 flex flex-col gap-3 border-b border-white/[0.08] pb-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-bold text-gray-100">Board</h3>
+          <h3 className="text-base lg:text-lg font-bold text-gray-100">Board</h3>
           <p className="text-xs text-gray-500">Organize work as columns and cards.</p>
         </div>
-        <form onSubmit={handleCreateColumn} className="flex items-center gap-2 text-xs">
+        <form onSubmit={handleCreateColumn} className="flex flex-col gap-2 sm:flex-row sm:items-center text-xs">
           <input
             name="title"
             placeholder="Add column"
-            className="rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-xs text-gray-100 placeholder:text-gray-600 focus:border-green-500/50 focus:outline-none focus:ring-1 focus:ring-green-500/30"
+            className="rounded-lg border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-xs text-gray-100 placeholder:text-gray-600 focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/30"
           />
           <button
             type="submit"
-            className="btn-accent px-3 py-1.5 text-xs"
+            className="btn-accent px-3 py-1.5 text-xs active:animate-press"
           >
             + Column
           </button>

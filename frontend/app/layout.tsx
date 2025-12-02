@@ -5,6 +5,9 @@ import { AppProviders } from './providers'
 export const metadata = {
   title: 'XO Labs',
   description: 'Realtime collaboration platform',
+  icons: {
+    icon: '/favicon.ico',
+  },
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {

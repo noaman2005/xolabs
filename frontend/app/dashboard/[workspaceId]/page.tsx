@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useMemo, useState } from "react"
+import { Search, Users as UsersIcon, Settings, Pencil, Trash2, Smile, Paperclip } from "lucide-react"
 
 import { useApi } from "../../../lib/hooks/useApi"
 import { RequireAuth } from "../../components/require-auth"
@@ -13,6 +14,7 @@ import { useTasks } from "../../../lib/features/tasks/useTasks"
 import { TasksPanel } from "../../../lib/features/tasks/components/TasksPanel"
 import { useBoard } from "../../../lib/features/board/useBoard"
 import { BoardPanel } from "../../../lib/features/board/components/BoardPanel"
+import { ResponsiveLayout } from "../../../lib/components/ResponsiveLayout"
 
 type ChannelType = 'text' | 'voice' | 'tasks' | 'board'
 
@@ -52,6 +54,8 @@ export default function WorkspacePage() {
   const [activeChannel, setActiveChannel] = useState<any | null>(null)
   const [messageText, setMessageText] = useState("")
   const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteModalOpen, setInviteModalOpen] = useState(false)
+  const [voiceConnecting, setVoiceConnecting] = useState(false)
   const { user, idToken } = useAuth()
 
   const activeChannelId = useMemo(() => {
@@ -62,6 +66,16 @@ export default function WorkspacePage() {
     }
     return null
   }, [activeChannel])
+
+  const handleJoinVoice = async () => {
+    if (voiceConnecting || voiceState.isConnected) return
+    setVoiceConnecting(true)
+    try {
+      await voiceState.joinVoice()
+    } finally {
+      setVoiceConnecting(false)
+    }
+  }
 
   const voiceState = useWebRTC({
     workspaceId,
@@ -162,6 +176,7 @@ export default function WorkspacePage() {
     },
     onSuccess: () => {
       setInviteEmail("")
+      setInviteModalOpen(false)
       queryClient.invalidateQueries({ queryKey: ["workspaces"] })
     },
   })
@@ -197,357 +212,398 @@ export default function WorkspacePage() {
     },
   })
 
-  return (
-    <RequireAuth>
-      <div className="flex min-h-screen bg-transparent text-gray-100">
-        {/* Sidebar 1: Workspaces */}
-        <aside className="glass-sidebar smooth-transition flex w-24 flex-col items-center justify-between px-3 py-4">
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-green-500/30 to-green-600/20 ring-1 ring-green-500/40 glow-green">
-              <span className="text-lg font-bold text-green-400">X</span>
+  const serverRail = (
+    <aside className="glass-sidebar smooth-transition hidden h-screen w-20 flex-col items-center justify-between px-3 py-4 lg:flex">
+      <div className="flex flex-col items-center gap-4">
+        <img src="/logo.png" alt="XO Labs" className="h-10 w-10 object-contain" />
+
+        <div className="flex flex-col gap-3">
+          {workspacesLoading && (
+            <div className="text-[10px] text-gray-500 text-center">Loading…</div>
+          )}
+          {!workspacesLoading && Array.isArray(workspaces) && workspaces.length === 0 && (
+            <div className="text-[10px] text-gray-500 text-center">No workspaces</div>
+          )}
+          {!workspacesLoading && Array.isArray(workspaces) && workspaces.map((ws: any) => {
+            const id = ws.id ?? (typeof ws.SK === "string" ? ws.SK.replace("WORKSPACE#", "") : undefined)
+            if (!id) return null
+            const name = (ws.name as string) ?? "Untitled"
+            const initials = name
+              .split(" ")
+              .map((p) => p[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase()
+
+            const isCurrent = id === workspaceId
+
+            return (
+              <a
+                key={ws.SK ?? ws.id}
+                href={`/dashboard/${id}`}
+                className={
+                  "smooth-transition group flex h-12 w-12 items-center justify-center rounded-2xl text-[11px] font-semibold ring-1 " +
+                  (isCurrent
+                    ? "card-glass bg-gradient-to-br from-green-500/40 to-green-600/30 ring-green-500/50 text-green-300 glow-green"
+                    : "card-glass text-gray-200 ring-white/[0.1] glow-green-hover")
+                }
+                title={name}
+              >
+                <span className={isCurrent ? "" : "group-hover:text-green-400"}>{initials}</span>
+              </a>
+            )
+          })}
+        </div>
+      </div>
+
+      <a
+        href="/"
+        className="smooth-transition flex h-12 w-12 items-center justify-center rounded-2xl card-glass text-gray-400 glow-green-hover"
+        title="Back to home"
+      >
+        ←
+      </a>
+    </aside>
+  )
+
+  const channelRail = (
+    <aside className="glass-panel smooth-transition flex h-full w-72 flex-col rounded-none border-r border-white/[0.06] bg-sidebar px-4 py-4 text-sm text-gray-300 lg:rounded-3xl lg:border lg:bg-transparent lg:px-6 lg:py-6">
+      {/* Workspace header */}
+      <div className="mb-6 border-b border-white/[0.08] pb-4">
+        {workspacesLoading && <div className="text-gray-500 text-sm">Loading workspace…</div>}
+        {!workspacesLoading && !workspace && (
+          <div className="text-gray-500 text-sm">Workspace not found.</div>
+        )}
+        {workspace && (
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="truncate text-lg font-semibold text-gray-100">{workspace.name}</h2>
+              {Array.isArray(workspace.members) && workspace.members.length > 0 && (
+                <p className="text-xs text-gray-500">
+                  {workspace.members.length} member{workspace.members.length > 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+            {isWorkspaceOwner && (
+              <button
+                type="button"
+                onClick={() => setInviteModalOpen(true)}
+                className="smooth-transition rounded-lg bg-white/[0.06] px-3 py-1.5 text-xs font-medium text-gray-200 hover:bg-white/[0.12] hover:text-gray-100"
+              >
+                Invite
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Channels section */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Channels
+          </h3>
+        </div>
+
+        {/* Create channel button */}
+        {isWorkspaceOwner ? (
+          <div className="mb-4">
+            <button
+              onClick={() => setChannelModalOpen(true)}
+              className="smooth-transition w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs text-gray-300 hover:border-green-500/40 hover:bg-white/[0.08]"
+            >
+              + Create channel
+            </button>
+          </div>
+        ) : (
+          <div className="mb-4 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs text-gray-600">
+            Channels can be created and managed by the workspace owner.
+          </div>
+        )}
+
+        {/* Channels list grouped by type */}
+        <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+          {channelsLoading && (
+            <div className="text-xs text-gray-500">Loading channels…</div>
+          )}
+          {!channelsLoading && (!channels || channels.length === 0) && (
+            <div className="text-xs text-gray-500">No channels yet</div>
+          )}
+          {!channelsLoading && Array.isArray(channels) && channels.length > 0 && (
+            <div className="space-y-3">
+              {(['text', 'voice', 'tasks', 'board'] as ChannelType[]).map((type) => {
+                const typeChannels = channels.filter((ch: any) => (ch.type as ChannelType) === type)
+                if (!typeChannels.length) return null
+                const meta = CHANNEL_TYPE_META[type]
+                return (
+                  <div key={type} className="space-y-1">
+                    <div className="flex items-center justify-between px-1 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
+                      <span className="inline-flex items-center gap-1">
+                        <span>{meta.icon}</span>
+                        {meta.label}
+                      </span>
+                      {type === 'voice' && (
+                        <span className="text-[10px] text-gray-600">Voice rooms</span>
+                      )}
+                    </div>
+                    <div className="space-y-1">
+                      {typeChannels.map((ch: any) => {
+                        const isActive =
+                          activeChannel &&
+                          (activeChannel.id === ch.id || activeChannel.SK === ch.SK)
+
+                        return (
+                          <div
+                            key={ch.SK ?? ch.id}
+                            className={
+                              "smooth-transition group flex items-center gap-2 rounded-lg px-3 py-2 text-xs cursor-pointer border " +
+                              (isActive
+                                ? "bg-gradient-to-r from-green-500/25 to-green-600/20 text-green-300 border-green-500/60 shadow-[0_0_18px_rgba(34,197,94,0.45)]"
+                                : "bg-white/[0.03] text-gray-300 border-white/[0.08] hover:bg-white/[0.08]")
+                            }
+                          >
+                            <span
+                              className="flex-1 truncate flex items-center gap-2"
+                              onClick={() => setActiveChannel(ch)}
+                            >
+                              <ChannelTypeBadge type={(ch.type as ChannelType) || 'text'} />
+                              {ch.name ?? "untitled-channel"}
+                            </span>
+
+                            {type === 'voice' && (
+                              <span className="text-[10px] text-gray-500">
+                                {(ch.activeParticipantCount as number | undefined) ?? 0}
+                              </span>
+                            )}
+
+                            {isWorkspaceOwner && (
+                              <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                <button
+                                  type="button"
+                                  className="smooth-transition rounded-md p-1 text-gray-500 hover:text-gray-300 hover:bg-white/[0.12]"
+                                  title="Rename channel"
+                                  onClick={() => {
+                                    const currentName = (ch.name as string) ?? ""
+                                    const nextName = window.prompt("Rename channel", currentName)
+                                    if (!nextName || !nextName.trim()) return
+                                    const cid =
+                                      ch.id ?? (typeof ch.SK === "string" ? ch.SK.replace("CHANNEL#", "") : null)
+                                    if (!cid || renameChannel.isPending) return
+                                    renameChannel.mutate({ channelId: cid, name: nextName.trim() })
+                                  }}
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Rename</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="smooth-transition rounded-md p-1 text-red-500/70 hover:text-red-300 hover:bg-red-500/15"
+                                  title="Delete channel"
+                                  onClick={() => {
+                                    const cid =
+                                      ch.id ?? (typeof ch.SK === "string" ? ch.SK.replace("CHANNEL#", "") : null)
+                                    if (!cid || deleteChannel.isPending) return
+                                    if (!window.confirm("Delete this channel and its messages?")) return
+                                    deleteChannel.mutate(cid)
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <span className="sr-only">Delete</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </aside>
+  )
+
+  const mainContent = (
+    <section className="glass-panel smooth-transition flex min-h-[calc(100vh-3.5rem)] flex-1 flex-col rounded-none px-4 py-4 lg:min-h-[unset] lg:rounded-3xl lg:px-8 lg:py-6">
+      {activeChannel ? (
+        <>
+          {/* Channel header bar */}
+          <div className="mb-4 flex flex-col gap-3 border-b border-white/[0.06] pb-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:pb-4">
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
+                <span className="text-xs uppercase tracking-wider text-gray-600">Channel</span>
+                <span className="text-xs text-gray-500">/
+                  {(activeChannel.type as ChannelType) || 'text'}</span>
+              </div>
+              <h2 className="truncate text-base font-semibold text-gray-100 sm:text-xl sm:font-bold">
+                <span className="mr-1 text-gray-500">#</span>
+                {activeChannel.name ?? "untitled-channel"}
+              </h2>
             </div>
 
-            <div className="flex flex-col gap-3">
-              {workspacesLoading && (
-                <div className="text-[10px] text-gray-500 text-center">Loading…</div>
+            <div className="flex flex-wrap items-center gap-2 text-xs sm:gap-3">
+              <button className="smooth-transition inline-flex items-center gap-1 rounded-lg bg-white/[0.04] px-2 py-1 text-gray-400 ring-1 ring-white/[0.06] hover:bg-white/[0.08] hover:text-gray-200">
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Search</span>
+              </button>
+              <button className="smooth-transition inline-flex items-center gap-1 rounded-lg bg-white/[0.04] px-2 py-1 text-gray-400 ring-1 ring-white/[0.06] hover:bg-white/[0.08] hover:text-gray-200">
+                <UsersIcon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Members</span>
+              </button>
+              {isWorkspaceOwner && (
+                <button className="smooth-transition inline-flex items-center gap-1 rounded-lg bg-white/[0.04] px-2 py-1 text-gray-400 ring-1 ring-white/[0.06] hover:bg-white/[0.08] hover:text-gray-200">
+                  <Settings className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Settings</span>
+                </button>
               )}
-              {!workspacesLoading && Array.isArray(workspaces) && workspaces.length === 0 && (
-                <div className="text-[10px] text-gray-500 text-center">No workspaces</div>
-              )}
-              {!workspacesLoading &&
-                Array.isArray(workspaces) &&
-                workspaces.map((ws: any) => {
-                  const id = ws.id ?? (typeof ws.SK === "string" ? ws.SK.replace("WORKSPACE#", "") : undefined)
-                  if (!id) return null
-                  const name = (ws.name as string) ?? "Untitled"
-                  const initials = name
-                    .split(" ")
-                    .map((p) => p[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()
-
-                  const isCurrent = id === workspaceId
-
-                  return (
-                    <a
-                      key={ws.SK ?? ws.id}
-                      href={`/dashboard/${id}`}
-                      className={
-                        "smooth-transition group flex h-12 w-12 items-center justify-center rounded-2xl text-[11px] font-semibold ring-1 " +
-                        (isCurrent
-                          ? "card-glass bg-gradient-to-br from-green-500/40 to-green-600/30 ring-green-500/50 text-green-300 glow-green"
-                          : "card-glass text-gray-200 ring-white/[0.1] glow-green-hover")
-                      }
-                      title={name}
-                    >
-                      <span className={isCurrent ? "" : "group-hover:text-green-400"}>{initials}</span>
-                    </a>
-                  )
-                })}
             </div>
           </div>
 
-          <a
-            href="/dashboard"
-            className="smooth-transition flex h-12 w-12 items-center justify-center rounded-2xl card-glass text-gray-400 glow-green-hover"
-            title="Back to dashboard"
-          >
-            ←
-          </a>
-        </aside>
-
-        {/* Main columns */}
-        <div className="flex min-h-screen flex-1 gap-4 px-6 py-4">
-          {/* Sidebar 2: Workspace + Channels */}
-          <aside className="glass-panel smooth-transition flex w-80 flex-col rounded-3xl px-6 py-6 text-sm text-gray-300">
-            {/* Workspace header */}
-            <div className="mb-6 space-y-2 border-b border-white/[0.08] pb-4">
-              {workspacesLoading && <div className="text-gray-500 text-sm">Loading workspace…</div>}
-              {!workspacesLoading && !workspace && (
-                <div className="text-gray-500 text-sm">Workspace not found.</div>
-              )}
-              {workspace && (
-                <>
-                  <h2 className="text-lg font-bold text-gray-100">{workspace.name}</h2>
-                  <p className="text-xs text-gray-600 break-all">ID: {workspace.id}</p>
-                  {workspace.ownerEmail && (
-                    <p className="text-xs text-gray-500">Owner: {workspace.ownerEmail}</p>
-                  )}
-                  {Array.isArray(workspace.members) && workspace.members.length > 0 && (
-                    <div className="text-xs text-gray-600 space-y-1">
-                      <p className="font-semibold text-gray-500">Members</p>
-                      <div className="flex flex-wrap gap-1">
-                        {workspace.members.map((member: string, idx: number) => (
-                          <span
-                            key={idx}
-                            className="inline-block rounded-full bg-white/[0.06] border border-white/[0.1] px-2 py-1 text-[10px] text-gray-400"
-                          >
-                            {member}
-                          </span>
-                        ))}
+          {(activeChannel.type as ChannelType) === 'voice' ? (
+            <div className="flex min-h-0 flex-1 flex-col gap-4">
+              <VoiceChannelPanel
+                isConnected={voiceState.isConnected}
+                isMuted={voiceState.isMuted}
+                participants={voiceState.participants}
+                localStream={voiceState.localStream}
+                remoteStreams={voiceState.remoteStreams}
+                onJoin={handleJoinVoice}
+                onLeave={voiceState.leaveVoice}
+                onToggleMute={voiceState.toggleMute}
+                isLoading={voiceConnecting && !voiceState.isConnected}
+                error={voiceState.error}
+              />
+            </div>
+          ) : (activeChannel.type as ChannelType) === 'tasks' ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <TasksPanel
+                tasks={tasksState.tasks}
+                isLoading={tasksState.isLoading}
+                error={tasksState.error}
+                onCreate={(input) => tasksState.createTask(input)}
+                onUpdate={(input) => tasksState.updateTask(input)}
+                onDelete={(taskId) => tasksState.deleteTask(taskId)}
+              />
+            </div>
+          ) : (activeChannel.type as ChannelType) === 'board' ? (
+            <div className="flex min-h-0 flex-1 flex-col">
+              <BoardPanel
+                columns={boardState.columns}
+                cards={boardState.cards}
+                isLoading={boardState.isLoading}
+                error={boardState.error}
+                onCreateColumn={(title) => boardState.createColumn(title)}
+                onCreateCard={(input) => boardState.createCard(input)}
+              />
+            </div>
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col">
+              {/* Message list */}
+              <div className="flex-1 space-y-3 overflow-y-auto pb-4">
+                {messagesLoading && (
+                  <div className="text-xs text-gray-500">Loading messages…</div>
+                )}
+                {!messagesLoading && (!messages || messages.length === 0) && (
+                  <div className="flex h-full items-center justify-center text-center">
+                    <div className="text-sm text-gray-500">
+                      No messages yet. Start the conversation!
+                    </div>
+                  </div>
+                )}
+                {!messagesLoading &&
+                  Array.isArray(messages) &&
+                  messages.map((msg: any) => (
+                    <div
+                      key={msg.SK ?? msg.id}
+                      className="smooth-transition group rounded-2xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 hover:border-green-500/30 hover:bg-white/[0.06] sm:px-4 sm:py-3"
+                    >
+                      <div className="mb-1 flex items-center gap-2 text-xs text-gray-500 sm:mb-2 sm:justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.08] text-[11px] text-gray-300">
+                            {(msg.authorEmail as string | undefined)?.[0]?.toUpperCase() ?? "?"}
+                          </div>
+                          <span className="font-semibold text-gray-300">{msg.authorEmail ?? "unknown"}</span>
+                        </div>
+                        <span>
+                          {msg.createdAt
+                            ? new Date(msg.createdAt).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : ""}
+                        </span>
+                      </div>
+                      <div className="whitespace-pre-line rounded-2xl bg-white/[0.03] px-3 py-2 text-sm text-gray-100 sm:px-4 sm:py-2">
+                        {msg.text}
                       </div>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
+                  ))}
+              </div>
 
-            {/* Invite section */}
-            {workspace && isWorkspaceOwner && (
+              {/* Message composer fixed to bottom of panel */}
               <form
-                className="mb-6 space-y-2"
+                className="mt-auto space-y-2 border-t border-white/[0.06] pt-3 sm:space-y-3 sm:pt-4"
                 onSubmit={(e) => {
                   e.preventDefault()
-                  if (!inviteEmail.trim() || inviteMutation.isPending) return
-                  inviteMutation.mutate(inviteEmail.trim())
+                  if (!messageText.trim() || sendMessage.isPending) return
+                  sendMessage.mutate(messageText.trim())
                 }}
               >
-                <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Invite Member
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="Email address"
-                    className="smooth-transition flex-1 rounded-lg bg-white/[0.06] border border-white/[0.1] px-3 py-2 text-xs text-gray-100 placeholder:text-gray-600 focus:border-green-500/50 focus:outline-none focus:ring-1 focus:ring-green-500/30"
-                  />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+                  <div className="relative flex-1">
+                    <textarea
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                      placeholder="Type your message…"
+                      className="smooth-transition h-20 w-full resize-none rounded-2xl bg-white/[0.04] border border-white/[0.08] px-3 py-2 text-sm text-gray-100 placeholder:text-gray-600 focus:border-green-500/50 focus:outline-none focus:ring-1 focus:ring-green-500/30 sm:h-16 sm:px-4 sm:py-3"
+                    />
+                    <div className="pointer-events-none absolute bottom-2 right-3 flex items-center gap-2 text-[10px] text-gray-500 sm:bottom-2.5 sm:right-4">
+                      <span className="pointer-events-auto cursor-pointer rounded-md bg-white/[0.06] p-1">
+                        <Smile className="h-3.5 w-3.5" />
+                      </span>
+                      <span className="pointer-events-auto cursor-pointer rounded-md bg-white/[0.06] p-1">
+                        <Paperclip className="h-3.5 w-3.5" />
+                      </span>
+                    </div>
+                  </div>
                   <button
                     type="submit"
-                    className="btn-accent px-3 py-2 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={!inviteEmail.trim() || inviteMutation.isPending}
+                    className="btn-accent flex h-10 items-center justify-center rounded-2xl px-5 text-sm disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:px-6"
+                    disabled={!messageText.trim() || sendMessage.isPending}
                   >
-                    {inviteMutation.isPending ? "…" : "Add"}
+                    {sendMessage.isPending ? "Sending…" : "Send"}
                   </button>
                 </div>
+                <p className="text-[10px] text-gray-600 sm:text-xs">
+                  Press <kbd className="rounded bg-white/[0.1] px-1.5 py-0.5">Enter</kbd> to send
+                </p>
               </form>
-            )}
-            {workspace && !isWorkspaceOwner && (
-              <p className="mb-6 text-xs text-gray-600">
-                Only workspace owners can invite new members.
-              </p>
-            )}
-
-            {/* Channels section */}
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  Text Channels
-                </h3>
-              </div>
-
-              {/* Create channel button */}
-              {isWorkspaceOwner ? (
-                <div className="mb-4">
-                  <button
-                    onClick={() => setChannelModalOpen(true)}
-                    className="smooth-transition w-full rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs text-gray-300 hover:border-green-500/40 hover:bg-white/[0.08]"
-                  >
-                    + Create channel
-                  </button>
-                </div>
-              ) : (
-                <div className="mb-4 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs text-gray-600">
-                  Channels can be created and managed by the workspace owner.
-                </div>
-              )}
-
-              {/* Channels list */}
-              <div className="flex-1 overflow-y-auto space-y-1">
-                {channelsLoading && (
-                  <div className="text-xs text-gray-500">Loading channels…</div>
-                )}
-                {!channelsLoading && (!channels || channels.length === 0) && (
-                  <div className="text-xs text-gray-500">No channels yet</div>
-                )}
-                {!channelsLoading &&
-                  Array.isArray(channels) &&
-                  channels.map((ch: any) => {
-                    const isActive =
-                      activeChannel &&
-                      (activeChannel.id === ch.id || activeChannel.SK === ch.SK)
-
-                    return (
-                      <div
-                        key={ch.SK ?? ch.id}
-                        className={
-                          "smooth-transition group flex items-center gap-2 rounded-lg px-3 py-2 text-xs cursor-pointer " +
-                          (isActive
-                            ? "bg-gradient-to-r from-green-500/30 to-green-600/20 text-green-300 border border-green-500/30"
-                            : "bg-white/[0.04] text-gray-300 hover:bg-white/[0.08] border border-white/[0.08]")
-                        }
-                      >
-                        <span
-                          className="flex-1 truncate flex items-center gap-2"
-                          onClick={() => setActiveChannel(ch)}
-                        >
-                          <ChannelTypeBadge type={(ch.type as ChannelType) || 'text'} />
-                          {ch.name ?? "untitled-channel"}
-                        </span>
-
-                        {isWorkspaceOwner && (
-                          <>
-                            <button
-                              className="smooth-transition rounded px-1.5 py-0.5 text-[10px] text-gray-600 hover:text-gray-400 hover:bg-white/[0.1] opacity-0 group-hover:opacity-100"
-                              onClick={() => {
-                                const currentName = (ch.name as string) ?? ""
-                                const nextName = window.prompt("Rename channel", currentName)
-                                if (!nextName || !nextName.trim()) return
-                                const cid =
-                                  ch.id ?? (typeof ch.SK === "string" ? ch.SK.replace("CHANNEL#", "") : null)
-                                if (!cid || renameChannel.isPending) return
-                                renameChannel.mutate({ channelId: cid, name: nextName.trim() })
-                              }}
-                            >
-                              Rename
-                            </button>
-                            <button
-                              className="smooth-transition rounded px-1.5 py-0.5 text-[10px] text-red-500/60 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100"
-                              onClick={() => {
-                                const cid =
-                                  ch.id ?? (typeof ch.SK === "string" ? ch.SK.replace("CHANNEL#", "") : null)
-                                if (!cid || deleteChannel.isPending) return
-                                if (!window.confirm("Delete this channel and its messages?")) return
-                                deleteChannel.mutate(cid)
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )
-                  })}
-              </div>
             </div>
-          </aside>
-
-          {/* Main chat / voice panel */}
-          <section className="glass-panel smooth-transition flex flex-1 flex-col rounded-3xl px-8 py-6">
-            {activeChannel ? (
-              <>
-                {/* Chat header */}
-                <div className="mb-6 flex items-center justify-between border-b border-white/[0.08] pb-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-100">
-                      #{activeChannel.name ?? "untitled-channel"}
-                    </h2>
-                    <p className="text-xs text-gray-600 mt-1">Channel ID: {activeChannelId}</p>
-                  </div>
-                </div>
-
-                {(activeChannel.type as ChannelType) === 'voice' ? (
-                  <div className="flex-1 flex flex-col">
-                    <VoiceChannelPanel
-                      isConnected={voiceState.isConnected}
-                      isMuted={voiceState.isMuted}
-                      participants={voiceState.participants}
-                      localStream={voiceState.localStream}
-                      remoteStreams={voiceState.remoteStreams}
-                      onJoin={voiceState.joinVoice}
-                      onLeave={voiceState.leaveVoice}
-                      onToggleMute={voiceState.toggleMute}
-                      error={voiceState.error}
-                    />
-                  </div>
-                ) : (activeChannel.type as ChannelType) === 'tasks' ? (
-                  <TasksPanel
-                    tasks={tasksState.tasks}
-                    isLoading={tasksState.isLoading}
-                    error={tasksState.error}
-                    onCreate={(input) => tasksState.createTask(input)}
-                    onUpdate={(input) => tasksState.updateTask(input)}
-                    onDelete={(taskId) => tasksState.deleteTask(taskId)}
-                  />
-                ) : (activeChannel.type as ChannelType) === 'board' ? (
-                  <BoardPanel
-                    columns={boardState.columns}
-                    cards={boardState.cards}
-                    isLoading={boardState.isLoading}
-                    error={boardState.error}
-                    onCreateColumn={(title) => boardState.createColumn(title)}
-                    onCreateCard={(input) => boardState.createCard(input)}
-                  />
-                ) : (
-                  <>
-                    {/* Messages */}
-                    <div className="flex-1 overflow-y-auto space-y-4 mb-6">
-                      {messagesLoading && (
-                        <div className="text-xs text-gray-500">Loading messages…</div>
-                      )}
-                      {!messagesLoading && (!messages || messages.length === 0) && (
-                        <div className="flex h-full items-center justify-center text-center">
-                          <div className="text-sm text-gray-500">
-                            No messages yet. Start the conversation!
-                          </div>
-                        </div>
-                      )}
-                      {!messagesLoading &&
-                        Array.isArray(messages) &&
-                        messages.map((msg: any) => (
-                          <div
-                            key={msg.SK ?? msg.id}
-                            className="smooth-transition group rounded-2xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 hover:border-green-500/30 hover:bg-white/[0.06]"
-                          >
-                            <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
-                              <span className="font-semibold text-gray-400">{msg.authorEmail ?? "unknown"}</span>
-                              <span>
-                                {msg.createdAt
-                                  ? new Date(msg.createdAt).toLocaleTimeString([], {
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })
-                                  : ""}
-                              </span>
-                            </div>
-                            <div className="whitespace-pre-line text-sm text-gray-200">{msg.text}</div>
-                          </div>
-                        ))}
-                    </div>
-
-                    {/* Message composer */}
-                    <form
-                      className="space-y-3 border-t border-white/[0.08] pt-4"
-                      onSubmit={(e) => {
-                        e.preventDefault()
-                        if (!messageText.trim() || sendMessage.isPending) return
-                        sendMessage.mutate(messageText.trim())
-                      }}
-                    >
-                      <textarea
-                        value={messageText}
-                        onChange={(e) => setMessageText(e.target.value)}
-                        placeholder="Type your message…"
-                        className="smooth-transition h-24 w-full resize-none rounded-xl bg-white/[0.06] border border-white/[0.1] px-4 py-3 text-sm text-gray-100 placeholder:text-gray-600 focus:border-green-500/50 focus:outline-none focus:ring-1 focus:ring-green-500/30"
-                      />
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-gray-600">
-                          Press <kbd className="rounded bg-white/[0.1] px-1.5 py-0.5">Enter</kbd> to send
-                        </p>
-                        <button
-                          type="submit"
-                          className="btn-accent px-6 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                          disabled={!messageText.trim() || sendMessage.isPending}
-                        >
-                          {sendMessage.isPending ? "Sending…" : "Send"}
-                        </button>
-                      </div>
-                    </form>
-                  </>
-                )}
-              </>
-            ) : (
-              <div className="flex flex-1 items-center justify-center rounded-2xl border-2 border-dashed border-white/[0.1] text-center">
-                <div className="space-y-2">
-                  <p className="text-lg font-semibold text-gray-400">No channel selected</p>
-                  <p className="text-sm text-gray-600">Choose a channel from the left to start chatting</p>
-                </div>
-              </div>
-            )}
-          </section>
+          )}
+        </>
+      ) : (
+        <div className="flex flex-1 items-center justify-center rounded-2xl border-2 border-dashed border-white/[0.1] text-center">
+          <div className="space-y-2">
+            <p className="text-lg font-semibold text-gray-400">No channel selected</p>
+            <p className="text-sm text-gray-600">Choose a channel from the left to start</p>
+          </div>
         </div>
-      </div>
+      )}
+    </section>
+  )
+
+  return (
+    <RequireAuth>
+      <ResponsiveLayout
+        serverRail={serverRail}
+        channelRail={channelRail}
+        mainContent={mainContent}
+        mobileHeaderTitle={workspace?.name || "Workspace"}
+      />
+
       {channelModalOpen && isWorkspaceOwner && (
         <ChannelCreateModal
           onClose={() => setChannelModalOpen(false)}
@@ -560,6 +616,19 @@ export default function WorkspacePage() {
             createChannel.mutate({ name: channelName.trim(), type: channelType })
           }}
           isSubmitting={createChannel.isPending}
+        />
+      )}
+
+      {inviteModalOpen && isWorkspaceOwner && (
+        <InviteMemberModal
+          onClose={() => setInviteModalOpen(false)}
+          inviteEmail={inviteEmail}
+          setInviteEmail={setInviteEmail}
+          onInvite={() => {
+            if (!inviteEmail.trim() || inviteMutation.isPending) return
+            inviteMutation.mutate(inviteEmail.trim())
+          }}
+          isSubmitting={inviteMutation.isPending}
         />
       )}
     </RequireAuth>
@@ -623,7 +692,9 @@ function ChannelCreateModal({
                       : 'border-white/10 bg-white/5 text-gray-300 hover:border-white/30'
                   }`}
                 >
-                  <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl ${isActive ? 'bg-green-500/20 text-green-300' : 'bg-white/5 text-gray-400'}`}>
+                  <div className={`mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl ${
+                    isActive ? 'bg-green-500/20 text-green-300' : 'bg-white/5 text-gray-400'
+                  }`}>
                     <span>{meta.icon}</span>
                   </div>
                   <div>
@@ -662,6 +733,68 @@ function ChannelCreateModal({
               className="btn-accent px-5 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? 'Creating…' : 'Create Channel'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+type InviteMemberModalProps = {
+  onClose: () => void
+  inviteEmail: string
+  setInviteEmail: (value: string) => void
+  onInvite: () => void
+  isSubmitting: boolean
+}
+
+function InviteMemberModal({
+  onClose,
+  inviteEmail,
+  setInviteEmail,
+  onInvite,
+  isSubmitting,
+}: InviteMemberModalProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="glass-panel w-full max-w-md rounded-3xl border border-white/10 px-6 py-6 text-sm text-gray-200">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-white">Invite member</h3>
+            <p className="text-xs text-gray-500">Send an email invite to join this workspace.</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300">✕</button>
+        </div>
+
+        <div className="space-y-3">
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Email address
+            </label>
+            <input
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="teammate@example.com"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-gray-600 focus:border-green-500/50 focus:outline-none focus:ring-1 focus:ring-green-500/30"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-glass px-4 py-2 text-xs"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onInvite}
+              disabled={!inviteEmail.trim() || isSubmitting}
+              className="btn-accent px-5 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? 'Sending…' : 'Send invite'}
             </button>
           </div>
         </div>
