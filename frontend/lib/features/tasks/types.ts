@@ -1,5 +1,7 @@
 export type TaskStatus = 'todo' | 'in-progress' | 'done'
 
+export type TaskPriority = 'low' | 'medium' | 'high'
+
 export interface Task {
   taskId: string
   workspaceId: string
@@ -9,6 +11,7 @@ export interface Task {
   status: TaskStatus
   assignedTo?: string | null
   dueDate?: string | null
+  priority?: TaskPriority | null
   createdAt: string
   updatedAt: string
 }

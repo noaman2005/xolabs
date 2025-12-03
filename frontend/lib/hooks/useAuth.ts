@@ -87,6 +87,34 @@ export function useAuth() {
     return data
   }, [])
 
+  const refreshSession = useCallback(async () => {
+    if (!tokens?.refreshToken) {
+      throw new Error("No refresh token available")
+    }
+
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+    })
+
+    const data = await res.json()
+    if (!res.ok) {
+      throw new Error(data?.message || "Refresh failed")
+    }
+
+    const nextTokens: AuthTokens = {
+      accessToken: data.accessToken ?? tokens.accessToken ?? null,
+      idToken: data.idToken ?? tokens.idToken ?? null,
+      refreshToken: tokens.refreshToken,
+      email: tokens.email,
+    }
+
+    writeStoredTokens(nextTokens)
+    setTokens(nextTokens)
+    return nextTokens
+  }, [tokens])
+
   const logout = useCallback(() => {
     writeStoredTokens(null)
     setTokens({ accessToken: null, idToken: null, refreshToken: null, email: null })
@@ -111,5 +139,6 @@ export function useAuth() {
     signup,
     login,
     logout,
+    refreshSession,
   }
 }

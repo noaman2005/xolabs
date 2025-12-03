@@ -5,7 +5,7 @@ XO Labs is a collaborative workspace app inspired by Discord, Notion, and Trello
 It uses:
 - **Backend**: AWS SAM + Lambda + API Gateway + DynamoDB + Cognito
 - **Frontend**: Next.js App Router, React Query, TailwindCSS
-- **Realtime**: In-memory signaling on the Next.js side (voice, tasks, board)
+- **Realtime**: HTTP polling + in-memory stores in the Next.js app for voice, tasks, and board
 
 ## Monorepo Structure
 
@@ -78,25 +78,25 @@ Located in `frontend/`.
   - Simple polling for updates
 
 - **Voice Channels**
-  - `/api/voice/signal` for signaling + presence
+  - `/api/voice/signal` for HTTP-based signaling and presence
   - `useWebRTC` hook for peer connections and media
-  - `VoiceChannelPanel` shows participants, join/leave, mute
+  - `VoiceChannelPanel` shows participants, join/leave, and mute state
 
 - **Tasks Channels**
   - Tasks stored in DynamoDB via Next.js API routes under `/api/tasks/*`
   - `useTasks` hook:
-    - `list/create/update/delete` tasks
-    - Polls `/api/tasks/events` for realtime snapshots
-  - `TasksPanel` shows a simple list view (title, description, status) with inline create and status updates
+    - `list`, `create`, `update`, `delete` tasks
+    - Polls `/api/tasks/events` for near-realtime snapshots
+  - `TasksPanel` shows a list view (title, description, status) with inline create and status updates
 
 - **Board Channels**
   - Kanban-style board per `board` channel
   - Data stored in DynamoDB via `/api/board/*`
   - `useBoard` hook:
     - Loads `{ columns, cards }` via `/api/board`
-    - CRUD for columns and cards
-    - Polls `/api/board/events` for realtime snapshots
-  - `BoardPanel` renders columns horizontally with cards + inline create forms
+    - Provides CRUD for columns and cards
+    - Polls `/api/board/events` for near-realtime snapshots
+  - `BoardPanel` renders columns horizontally with cards and inline create forms
 
 ### Running Locally
 

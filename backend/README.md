@@ -1,6 +1,6 @@
 # XO Labs Backend (AWS SAM)
 
-This directory contains the AWS SAM backend for XO Labs. It exposes a REST API for auth, workspaces, channels, and messages using Lambda + API Gateway + DynamoDB + Cognito.
+This directory contains the AWS SAM backend for XO Labs. It exposes a REST API for authentication, workspaces, channels, and messages using Lambda, API Gateway, DynamoDB, and Cognito.
 
 ## Tech Stack
 
@@ -14,13 +14,13 @@ This directory contains the AWS SAM backend for XO Labs. It exposes a REST API f
 - `src/`
   - `handlers/http/`
     - `auth-*.ts` – login, signup, confirm signup
-    - `workspaces-*.ts` – CRUD + invites for workspaces
-    - `channels-*.ts` – CRUD for channels
-    - `messages-*.ts` – CRUD for channel messages
+    - `workspaces-*.ts` – CRUD and invites for workspaces
+    - `channels-*.ts` – CRUD for channels (text, voice, tasks, board metadata)
+    - `messages-*.ts` – CRUD for text channel messages
   - `lib/`
     - `auth/requireUser.ts` – verifies Cognito ID token from `Authorization: Bearer` header
 - `tsconfig.json` – TypeScript config
-- `package.json` – build scripts & dependencies
+- `package.json` – build scripts and dependencies
 
 Tasks and Board features currently use **Next.js API routes + DynamoDB** directly from the frontend app and are not defined as separate Lambdas here.
 

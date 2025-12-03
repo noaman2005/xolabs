@@ -2,24 +2,31 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { LayoutDashboard, Users, Compass, Search as SearchIcon, X } from 'lucide-react'
 import { useApi } from '../lib/hooks/useApi'
 import { RequireAuth } from './components/require-auth'
 import { useAuth } from '../lib/hooks/useAuth'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 type WorkspaceItem = {
   id: string
   name: string
   initials: string
+  imageUrl: string | null
+  isOwner: boolean
 }
 
 export default function HomePage() {
   const { request } = useApi()
+  const queryClient = useQueryClient()
+  const router = useRouter()
   const { user, logout } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeSection, setActiveSection] = useState<'dashboard' | 'friends' | 'workspaces' | 'search'>('workspaces')
+  const [createModalOpen, setCreateModalOpen] = useState(false)
+  const [newWorkspaceName, setNewWorkspaceName] = useState('')
   const { data, isLoading } = useQuery({
     queryKey: ['workspaces'],
     queryFn: () => request('/workspaces'),
@@ -37,10 +44,65 @@ export default function HomePage() {
             .join('')
             .slice(0, 2)
             .toUpperCase()
-          return { id, name, initials }
+          const imageUrl = typeof ws.imageUrl === 'string' ? ws.imageUrl : null
+          const ownerEmail = typeof ws.ownerEmail === 'string' ? ws.ownerEmail : null
+          const isOwner = !!ownerEmail && ownerEmail === user?.email
+          return { id, name, initials, imageUrl, isOwner }
         })
         .filter(Boolean) as WorkspaceItem[])
     : []
+
+  const createWorkspace = useMutation({
+    mutationFn: async (name: string) => {
+      return request('/workspaces', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      })
+    },
+    onSuccess: (created: any) => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+      setCreateModalOpen(false)
+      setNewWorkspaceName('')
+      const id = created?.id ?? (typeof created?.SK === 'string' ? created.SK.replace('WORKSPACE#', '') : undefined)
+      if (id) {
+        router.push(`/dashboard/${id}`)
+      }
+    },
+  })
+
+  const renameWorkspace = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      return request(`/workspaces/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name }),
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+    },
+  })
+
+  const deleteWorkspace = useMutation({
+    mutationFn: async (id: string) => {
+      return request(`/workspaces/${id}`, {
+        method: 'DELETE',
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+    },
+  })
+
+  const leaveWorkspace = useMutation({
+    mutationFn: async (id: string) => {
+      return request(`/workspaces/${id}/leave`, {
+        method: 'POST',
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] })
+    },
+  })
 
   return (
     <RequireAuth>
@@ -90,6 +152,13 @@ export default function HomePage() {
               <h1 className="text-2xl font-bold text-gray-50 sm:text-3xl">Workspaces</h1>
               <p className="mt-1 text-sm text-gray-400">Manage your collaboration spaces</p>
             </div>
+            <button
+              type="button"
+              onClick={() => setCreateModalOpen(true)}
+              className="smooth-transition rounded-lg bg-green-500 px-3 py-2 text-xs font-medium text-white shadow-md hover:bg-green-400 hover:shadow-lg"
+            >
+              + Create workspace
+            </button>
           </div>
 
           {/* Workspaces Grid (current only section) */}
@@ -104,29 +173,26 @@ export default function HomePage() {
               </div>
             )}
             {!isLoading && workspaces.length > 0 && (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8">
                 {workspaces.map((ws) => (
                   <div
                     key={ws.id}
-                    className="group smooth-transition flex flex-col justify-between rounded-2xl border border-white/[0.15] bg-white/[0.1] p-6 shadow-[0_8px_32px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.1)] backdrop-blur-3xl hover:border-white/[0.2] hover:bg-white/[0.12]"
+                    className="group smooth-transition flex flex-col items-center rounded-2xl px-1.5 py-2.5 text-center hover:bg-white/[0.04]"
                   >
-                    <div className="mb-4 flex items-center gap-3">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-accent/80 to-accent-soft/70 text-sm font-semibold text-white shadow-[0_0_18px_rgba(88,101,242,0.5)]">
-                        {ws.initials}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-50 group-hover:text-green-300 smooth-transition">
-                          {ws.name}
-                        </h3>
-                        <p className="text-xs text-gray-500">Workspace</p>
-                      </div>
-                    </div>
                     <Link
                       href={`/dashboard/${ws.id}`}
-                      className="smooth-transition rounded-lg bg-white/[0.12] px-3 py-2 text-xs text-gray-200 hover:bg-white/[0.18] hover:text-gray-100"
+                      className="smooth-transition mb-1.5 flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-accent/80 to-accent-soft/70 text-base font-semibold text-white shadow-[0_0_10px_rgba(0,0,0,0.6)] hover:shadow-[0_0_16px_rgba(0,0,0,0.9)]"
                     >
-                      Open
+                      {ws.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={ws.imageUrl} alt={ws.name} className="h-full w-full object-cover" />
+                      ) : (
+                        <span>{ws.initials}</span>
+                      )}
                     </Link>
+                    <p className="truncate text-xs font-semibold text-gray-50 group-hover:text-green-300 smooth-transition">
+                      {ws.name}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -134,6 +200,45 @@ export default function HomePage() {
           </div>
         </div>
       </main>
+      {createModalOpen && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+          <div className="glass-panel w-full max-w-sm rounded-2xl border border-white/10 bg-black/80 p-5 shadow-xl">
+            <h2 className="mb-2 text-sm font-semibold text-gray-100">Create workspace</h2>
+            <p className="mb-4 text-xs text-gray-500">Give your new workspace a short, memorable name.</p>
+            <input
+              type="text"
+              value={newWorkspaceName}
+              onChange={(e) => setNewWorkspaceName(e.target.value)}
+              placeholder="Workspace name"
+              className="mb-4 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-gray-100 placeholder:text-gray-600 focus:border-green-500 focus:outline-none"
+            />
+            <div className="flex justify-end gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => {
+                  if (createWorkspace.isPending) return
+                  setCreateModalOpen(false)
+                  setNewWorkspaceName('')
+                }}
+                className="smooth-transition rounded-lg bg-white/[0.04] px-3 py-1.5 text-gray-300 hover:bg-white/[0.08]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!newWorkspaceName.trim() || createWorkspace.isPending}
+                onClick={() => {
+                  if (!newWorkspaceName.trim() || createWorkspace.isPending) return
+                  createWorkspace.mutate(newWorkspaceName.trim())
+                }}
+                className="smooth-transition rounded-lg bg-green-500 px-3 py-1.5 text-white disabled:cursor-not-allowed disabled:bg-green-500/40"
+              >
+                {createWorkspace.isPending ? 'Creating…' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </RequireAuth>
   )
 }
@@ -250,8 +355,13 @@ function Sidebar({
             href={`/dashboard/${ws.id}`}
             className="smooth-transition flex items-center gap-2 rounded-lg bg-white/[0.06] px-3 py-2 text-xs text-gray-200 hover:bg-white/[0.12] hover:text-gray-100"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/[0.12] text-[11px] font-semibold">
-              {ws.initials}
+            <span className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-white/[0.12] text-[11px] font-semibold">
+              {ws.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ws.imageUrl} alt={ws.name} className="h-full w-full object-cover" />
+              ) : (
+                <>{ws.initials}</>
+              )}
             </span>
             <span className="truncate">{ws.name}</span>
           </Link>

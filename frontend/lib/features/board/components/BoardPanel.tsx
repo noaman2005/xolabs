@@ -1,5 +1,6 @@
-'use client'
+"use client"
 
+import { useState } from 'react'
 import type { BoardCard, BoardColumn } from '../types'
 
 interface BoardPanelProps {
@@ -9,9 +10,12 @@ interface BoardPanelProps {
   error: string | null
   onCreateColumn: (title: string) => Promise<any>
   onCreateCard: (input: { columnId: string; title: string; description?: string }) => Promise<any>
+  onUpdateCard: (input: { cardId: string; updates: Partial<BoardCard> }) => Promise<any>
 }
 
-export function BoardPanel({ columns, cards, isLoading, error, onCreateColumn, onCreateCard }: BoardPanelProps) {
+export function BoardPanel({ columns, cards, isLoading, error, onCreateColumn, onCreateCard, onUpdateCard }: BoardPanelProps) {
+  const [draggedCardId, setDraggedCardId] = useState<string | null>(null)
+
   async function handleCreateColumn(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const form = e.currentTarget
@@ -22,8 +26,32 @@ export function BoardPanel({ columns, cards, isLoading, error, onCreateColumn, o
     form.reset()
   }
 
+  function handleCardDragStart(cardId: string) {
+    setDraggedCardId(cardId)
+  }
+
+  function handleCardDragEnd() {
+    setDraggedCardId(null)
+  }
+
+  async function handleColumnDrop(columnId: string) {
+    if (!draggedCardId) return
+    const card = cards.find((c) => c.cardId === draggedCardId)
+    if (!card) {
+      setDraggedCardId(null)
+      return
+    }
+
+    const targetCards = cards.filter((c) => c.columnId === columnId)
+    const maxOrder = targetCards.length ? Math.max(...targetCards.map((c) => c.order)) : 0
+    const nextOrder = maxOrder + 1
+
+    await onUpdateCard({ cardId: card.cardId, updates: { columnId, order: nextOrder } })
+    setDraggedCardId(null)
+  }
+
   return (
-    <div className="glass-panel smooth-transition flex flex-1 flex-col rounded-0 lg:rounded-3xl px-4 lg:px-8 py-6 overflow-hidden animate-fade-in">
+    <div className="glass-panel smooth-transition flex flex-1 flex-col rounded-none px-4 py-6 overflow-hidden lg:rounded-3xl lg:px-8 lg:py-6">
       {/* Header */}
       <div className="mb-4 flex flex-col gap-3 border-b border-white/[0.08] pb-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -56,7 +84,7 @@ export function BoardPanel({ columns, cards, isLoading, error, onCreateColumn, o
       <div className="flex-1 overflow-x-auto overflow-y-hidden">
         <div className="flex h-full gap-4">
           {columns.length === 0 && !isLoading && (
-            <div className="text-xs text-gray-600 mt-2">No columns yet. Create one to get started.</div>
+            <div className="mt-2 text-xs text-gray-600">No columns yet. Create one to get started.</div>
           )}
 
           {columns.map((column) => {
@@ -76,7 +104,14 @@ export function BoardPanel({ columns, cards, isLoading, error, onCreateColumn, o
             return (
               <div
                 key={column.columnId}
-                className="flex h-full min-w-[220px] max-w-[260px] flex-col rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3 py-3"
+                className="flex h-full min-w-[230px] max-w-[260px] flex-col rounded-2xl border border-white/[0.08] bg-black/40 px-3 py-3"
+                onDragOver={(e) => {
+                  if (draggedCardId) e.preventDefault()
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  void handleColumnDrop(column.columnId)
+                }}
               >
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div className="truncate text-xs font-semibold text-gray-100" title={column.title}>
@@ -91,7 +126,10 @@ export function BoardPanel({ columns, cards, isLoading, error, onCreateColumn, o
                   {columnCards.map((card) => (
                     <div
                       key={card.cardId}
-                      className="rounded-xl border border-white/[0.08] bg-white/[0.06] px-3 py-2 text-xs text-gray-100"
+                      draggable
+                      onDragStart={() => handleCardDragStart(card.cardId)}
+                      onDragEnd={handleCardDragEnd}
+                      className="rounded-xl border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-xs text-gray-100 shadow-sm hover:bg-white/[0.08]"
                     >
                       <div className="font-semibold break-words">{card.title}</div>
                       {card.description && (

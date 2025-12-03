@@ -1,12 +1,12 @@
 # XO Labs Frontend (Next.js)
 
-This is the Next.js app for XO Labs. It provides the dashboard UI, workspace & channel views, and feature-specific UIs for voice, tasks, and boards.
+This is the Next.js app for XO Labs. It provides the dashboard UI, workspace and channel views, and feature-specific UIs for voice, tasks, and boards.
 
 ## Tech Stack
 
 - Next.js (App Router)
 - React 18 + TypeScript
-- @tanstack/react-query for data fetching & caching
+- @tanstack/react-query for data fetching and caching
 - TailwindCSS for styling
 - aws-jwt-verify for verifying Cognito ID tokens in API routes
 
@@ -14,11 +14,11 @@ This is the Next.js app for XO Labs. It provides the dashboard UI, workspace & c
 
 - `app/`
   - `dashboard/`
-    - `[workspaceId]/page.tsx` – main workspace view (channels sidebar + main panel)
+    - `[workspaceId]/page.tsx` – main workspace view (channels sidebar and main panel)
   - `api/`
-    - `voice/signal/route.ts` – signaling/presence for voice channels (HTTP-based)
-    - `tasks/*` – Tasks CRUD + events (`create`, `list`, `update`, `delete`, `events`)
-    - `board/*` – Board (Kanban) CRUD + events (`columns`, `cards`, `events`)
+    - `voice/signal/route.ts` – HTTP-based signaling and presence for voice channels
+    - `tasks/*` – Tasks CRUD and events (`create`, `list`, `update`, `delete`, `events`)
+    - `board/*` – Board (Kanban) CRUD and events (`columns`, `cards`, `events`)
 - `lib/`
   - `hooks/`
     - `useAuth.ts` – auth tokens from Cognito-based backend

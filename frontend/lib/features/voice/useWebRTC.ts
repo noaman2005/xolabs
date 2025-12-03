@@ -358,7 +358,6 @@ export function useWebRTC(options: UseWebRTCOptions) {
 
       setLocalStream(null)
       setRemoteStreams({})
-      setParticipants([])
       setIsConnected(false)
       setIsMuted(false)
     } catch (err) {

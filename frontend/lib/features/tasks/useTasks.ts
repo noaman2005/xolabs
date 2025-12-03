@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { Task, TaskStatus } from './types'
+import type { Task, TaskStatus, TaskPriority } from './types'
 import { useAuth } from '../../hooks/useAuth'
 
 interface UseTasksOptions {
@@ -49,7 +49,7 @@ export function useTasks({ workspaceId, channelId }: UseTasksOptions) {
   })
 
   const createMutation = useMutation({
-    mutationFn: async (input: { title: string; description?: string; assignedTo?: string; dueDate?: string }) => {
+    mutationFn: async (input: { title: string; description?: string; assignedTo?: string; dueDate?: string; priority?: TaskPriority }) => {
       return fetchWithAuth('/api/tasks/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -62,7 +62,7 @@ export function useTasks({ workspaceId, channelId }: UseTasksOptions) {
   })
 
   const updateMutation = useMutation({
-    mutationFn: async (input: { taskId: string; updates: Partial<Pick<Task, 'title' | 'description' | 'status' | 'assignedTo' | 'dueDate'>> }) => {
+    mutationFn: async (input: { taskId: string; updates: Partial<Pick<Task, 'title' | 'description' | 'status' | 'assignedTo' | 'dueDate' | 'priority'>> }) => {
       return fetchWithAuth('/api/tasks/update', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

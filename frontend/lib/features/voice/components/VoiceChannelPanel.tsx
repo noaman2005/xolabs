@@ -1,7 +1,8 @@
-'use client'
+"use client"
 
 import { useEffect, useMemo, useRef } from 'react'
 import type { VoiceParticipant } from '../types'
+import { useSpeakingIndicator } from '../useSpeakingIndicator'
 
 interface VoiceChannelPanelProps {
   isConnected: boolean
@@ -61,96 +62,123 @@ export function VoiceChannelPanel({
     })
   }, [remoteStreams])
 
+  const speakingMap = useSpeakingIndicator(remoteStreams)
+
   if (!isConnected) {
     return (
-      <div className="glass-panel smooth-transition flex flex-col items-center justify-center rounded-0 lg:rounded-3xl px-4 lg:px-8 py-8 lg:py-12 text-center animate-fade-in">
-        <div className="mb-4 text-base lg:text-lg font-semibold text-gray-100">Join Voice Channel</div>
-        <p className="mb-6 max-w-sm text-xs lg:text-sm text-gray-500">
-          Click below to join the voice channel and connect with other participants.
-        </p>
+      <div className="glass-panel smooth-transition flex flex-col rounded-0 px-4 py-6 lg:rounded-3xl lg:px-8 lg:py-8">
+        <div className="mb-4 text-center">
+          <div className="mb-2 text-base font-semibold text-gray-100 lg:text-lg">Join voice channel</div>
+          <p className="mx-auto mb-4 max-w-sm text-xs text-gray-500 lg:text-sm">
+            Connect with others in this channel using your microphone. You can leave or mute anytime.
+          </p>
+        </div>
+
+        {participants.length > 0 && (
+          <div className="mb-4">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-gray-500">Currently in channel</p>
+            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+              {uniqueParticipants.map((participant) => {
+                const firstLetter = participant.email.charAt(0).toUpperCase()
+                return (
+                  <div
+                    key={participant.connectionId}
+                    className="flex flex-col items-center gap-1 text-center"
+                  >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.06] text-sm font-semibold text-gray-100">
+                      {firstLetter}
+                    </div>
+                    <span className="line-clamp-1 w-full truncate text-[10px] text-gray-400">{participant.email}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {error && (
-          <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs lg:text-sm text-red-400">
+          <div className="mb-4 max-w-sm rounded-lg border border-red-500/40 bg-red-900/40 px-4 py-2 text-xs text-red-100 lg:text-sm">
             {error}
           </div>
         )}
 
-        <button
-          onClick={onJoin}
-          disabled={isLoading}
-          className="btn-accent px-6 lg:px-8 py-2 lg:py-3 text-sm active:animate-press disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isLoading ? 'Joining…' : '🔊 Join Voice'}
-        </button>
+        <div className="mt-2 flex justify-center">
+          <button
+            onClick={onJoin}
+            disabled={isLoading}
+            className="rounded-lg bg-green-500 px-6 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-green-400 disabled:cursor-not-allowed disabled:bg-green-500/50 lg:px-8 lg:py-3"
+          >
+            {isLoading ? "Joining…" : "Join voice"}
+          </button>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="glass-panel smooth-transition flex flex-col rounded-0 lg:rounded-3xl px-4 lg:px-8 py-6 animate-fade-in">
+    <div className="glass-panel smooth-transition flex flex-1 flex-col rounded-0 px-4 py-6 lg:rounded-3xl lg:px-8 lg:py-6">
       {/* Header */}
-      <div className="mb-6 flex flex-col gap-3 border-b border-white/[0.08] pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/[0.08] pb-3">
         <div>
-          <h3 className="text-base lg:text-lg font-bold text-gray-100">Voice Channel Active</h3>
-          <p className="text-xs text-gray-600 mt-1">{participants.length} participant(s)</p>
+          <h3 className="text-sm font-semibold text-gray-100 lg:text-base">Voice connected</h3>
+          <p className="mt-1 text-[11px] text-gray-500">{participants.length} participant(s)</p>
         </div>
         <button
           onClick={onLeave}
-          className="rounded-lg bg-red-500/10 border border-red-500/20 px-4 py-2 text-xs lg:text-sm text-red-400 hover:bg-red-500/20 hover:text-red-300 smooth-transition active:animate-press"
+          className="rounded-lg border border-red-500/40 bg-red-900/40 px-3 py-1.5 text-[11px] text-red-100 transition hover:bg-red-700/60 lg:text-xs"
         >
-          Leave
+          Disconnect
         </button>
       </div>
 
-      {/* Participants Grid */}
-      <div className="mb-6 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
-        {uniqueParticipants.map((participant) => {
-          const isMuted = participant.isMuted
-          const firstLetter = participant.email.charAt(0).toUpperCase()
+      {/* Participants grid with large circles */}
+      <div className="mb-4 flex-1 overflow-y-auto rounded-2xl border border-white/[0.06] bg-black/40 p-4 text-xs">
+        {uniqueParticipants.length === 0 && (
+          <div className="text-[11px] text-gray-500">No one is in this voice channel yet.</div>
+        )}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          {uniqueParticipants.map((participant) => {
+            const isMuted = participant.isMuted
+            const firstLetter = participant.email.charAt(0).toUpperCase()
+            const isSpeaking = speakingMap[participant.connectionId]
 
-          return (
-            <div
-              key={participant.connectionId}
-              className={
-                'smooth-transition flex flex-col items-center rounded-xl border p-3 text-center animate-pop ' +
-                (isMuted
-                  ? 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
-                  : 'border-green-500/60 bg-green-500/5 shadow-[0_0_18px_rgba(34,197,94,0.5)] hover:bg-green-500/10')
-              }
-            >
-              <div
-                className={
-                  'mb-2 flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold ' +
-                  (isMuted
-                    ? 'bg-white/[0.08] text-gray-300'
-                    : 'bg-gradient-to-br from-green-500/40 to-green-500/20 text-white')
-                }
-              >
-                {firstLetter}
+            return (
+              <div key={participant.connectionId} className="flex flex-col items-center text-center">
+                <div
+                  className={
+                    'smooth-transition relative flex h-16 w-16 items-center justify-center rounded-full border-2 text-base font-semibold ' +
+                    (isMuted
+                      ? 'border-white/15 bg-white/[0.06] text-gray-300'
+                      : isSpeaking
+                      ? 'border-green-400 bg-green-600/80 text-white shadow-[0_0_0_3px_rgba(34,197,94,0.5)]'
+                      : 'border-green-500/40 bg-green-700/80 text-white')
+                  }
+                >
+                  {firstLetter}
+                </div>
+                <div className="mt-2 flex flex-col items-center gap-0.5">
+                  <span className="line-clamp-1 w-full truncate text-[11px] text-gray-100">{participant.email}</span>
+                  <span className="text-[10px] text-gray-500">
+                    {isMuted ? 'Muted' : isSpeaking ? 'Speaking' : 'Listening'}
+                  </span>
+                </div>
               </div>
-              <p className="text-[10px] font-semibold text-gray-300 break-all line-clamp-2">{participant.email}</p>
-              <div className="mt-2 flex items-center justify-center gap-1 text-[10px]">
-                <span className={isMuted ? 'text-red-400' : 'text-green-300'}>
-                  {isMuted ? '🔇' : '🎙️'}
-                </span>
-                <span className="text-gray-500">{isMuted ? 'Muted' : 'Live'}</span>
-              </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col gap-2 items-center justify-center border-t border-white/[0.08] pt-4 sm:flex-row">
+      <div className="flex items-center justify-end gap-3 border-t border-white/[0.08] pt-3 text-[11px]">
         <button
           onClick={onToggleMute}
-          className={`smooth-transition rounded-lg px-4 lg:px-6 py-2 text-xs lg:text-sm font-medium active:animate-press ${
+          className={`rounded-lg px-3 py-1.5 text-[11px] font-medium transition lg:px-4 lg:text-xs ${
             isMuted
-              ? 'bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300'
-              : 'bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20'
+              ? 'border border-red-500/40 bg-red-900/40 text-red-100 hover:bg-red-700/60'
+              : 'border border-green-500/40 bg-green-900/30 text-green-100 hover:bg-green-700/60'
           }`}
         >
-          {isMuted ? '🔇 Unmute' : '🔊 Mute'}
+          {isMuted ? 'Unmute' : 'Mute'}
         </button>
       </div>
 

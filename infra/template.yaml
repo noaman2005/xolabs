@@ -129,6 +129,22 @@ Resources:
             Path: /auth/login
             Method: post
 
+  AuthRefreshFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/auth-refresh.handler
+      Environment:
+        Variables:
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        Refresh:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /auth/refresh
+            Method: post
+
   AuthConfirmSignupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -208,6 +224,30 @@ Resources:
             Path: /workspaces/{workspaceId}
             Method: patch
 
+  WorkspaceImageUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/workspaces-image-upload.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+        - S3CrudPolicy:
+            BucketName: !Ref AvatarsBucket
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+          AVATARS_BUCKET: !Ref AvatarsBucket
+      Events:
+        UploadWorkspaceImage:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}/image
+            Method: post
+
   DeleteWorkspaceFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -228,6 +268,27 @@ Resources:
             RestApiId: !Ref RestApi
             Path: /workspaces/{workspaceId}
             Method: delete
+
+  LeaveWorkspaceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/workspaces-leave.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        LeaveWorkspace:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}/leave
+            Method: post
 
   ListWorkspaceChannelsFunction:
     Type: AWS::Serverless::Function

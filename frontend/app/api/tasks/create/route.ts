@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { CognitoJwtVerifier } from 'aws-jwt-verify'
 import { createTask, assertWorkspaceMember } from '../../../../lib/features/tasks/dynamodb'
 import { taskStore } from '../../../../lib/features/tasks/store'
-import type { TaskEvent } from '../../../../lib/features/tasks/types'
+import type { TaskEvent, TaskPriority } from '../../../../lib/features/tasks/types'
 
 const USER_POOL_ID =
   process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID ??
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await requireUser(request)
     const body = await request.json()
-    const { workspaceId, channelId, title, description, assignedTo, dueDate } = body ?? {}
+    const { workspaceId, channelId, title, description, assignedTo, dueDate, priority } = body ?? {}
 
     if (!workspaceId || !channelId || !title || typeof title !== 'string' || !title.trim()) {
       return NextResponse.json(
@@ -53,6 +53,14 @@ export async function POST(request: NextRequest) {
 
     await assertWorkspaceMember(workspaceId, user.email)
 
+    let normalizedPriority: TaskPriority | undefined
+    if (typeof priority === 'string') {
+      const lower = priority.toLowerCase()
+      if (lower === 'low' || lower === 'medium' || lower === 'high') {
+        normalizedPriority = lower as TaskPriority
+      }
+    }
+
     const task = await createTask({
       workspaceId,
       channelId,
@@ -60,6 +68,7 @@ export async function POST(request: NextRequest) {
       description: typeof description === 'string' ? description : undefined,
       assignedTo: typeof assignedTo === 'string' ? assignedTo : undefined,
       dueDate: typeof dueDate === 'string' ? dueDate : undefined,
+      priority: normalizedPriority,
     })
 
     taskStore.upsertTask(task)

@@ -1,18 +1,19 @@
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb'
+import { DynamoDBDocumentClient, GetCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb'
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 import { requireUser, UnauthorizedError } from '../../lib/auth/requireUser.js'
 
-const client = DynamoDBDocumentClient.from(new DynamoDBClient({}))
+const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}))
+const s3 = new S3Client({})
+
 const TABLE_NAME = process.env.TABLE_NAME as string
+const AVATARS_BUCKET = process.env.AVATARS_BUCKET as string
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
     const user = await requireUser(event)
     const workspaceId = event.pathParameters?.workspaceId
-    const body = event.body ? JSON.parse(event.body) : {}
-    const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim() : null
-    const imageUrl = typeof body.imageUrl === 'string' && body.imageUrl.trim() ? body.imageUrl.trim() : null
 
     if (!workspaceId) {
       return {
@@ -25,18 +26,23 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }
     }
 
-    if (!name && imageUrl === null) {
+    const body = event.body ? JSON.parse(event.body) : {}
+    const fileNameRaw = typeof body.fileName === 'string' ? body.fileName : null
+    const contentType = typeof body.contentType === 'string' ? body.contentType : null
+    const data = typeof body.data === 'string' ? body.data : null
+
+    if (!fileNameRaw || !contentType || !data) {
       return {
         statusCode: 400,
         headers: {
           'content-type': 'application/json',
           'access-control-allow-origin': '*',
         },
-        body: JSON.stringify({ message: 'At least one of name or imageUrl is required' }),
+        body: JSON.stringify({ message: 'fileName, contentType, and data are required' }),
       }
     }
 
-    const existing = await client.send(
+    const existing = await ddb.send(
       new GetCommand({
         TableName: TABLE_NAME,
         Key: {
@@ -57,36 +63,35 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       }
     }
 
+    const safeFileName = fileNameRaw.replace(/[^a-zA-Z0-9_.-]/g, '_')
+    const key = `workspaces/${workspaceId}/${Date.now()}-${safeFileName}`
+
+    const buffer = Buffer.from(data, 'base64')
+
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: AVATARS_BUCKET,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+      }),
+    )
+
+    const imageUrl = `https://${AVATARS_BUCKET}.s3.amazonaws.com/${key}`
     const now = new Date().toISOString()
 
-    // Build dynamic update expression to support optional fields
-    const setExpressions: string[] = ['updatedAt = :updatedAt']
-    const exprAttrNames: Record<string, string> = {}
-    const exprAttrValues: Record<string, unknown> = {
-      ':updatedAt': now,
-    }
-
-    if (name) {
-      setExpressions.push('#name = :name')
-      exprAttrNames['#name'] = 'name'
-      exprAttrValues[':name'] = name
-    }
-
-    if (imageUrl !== null) {
-      setExpressions.push('imageUrl = :imageUrl')
-      exprAttrValues[':imageUrl'] = imageUrl
-    }
-
-    const result = await client.send(
+    const updateResult = await ddb.send(
       new UpdateCommand({
         TableName: TABLE_NAME,
         Key: {
           PK: 'WORKSPACE',
           SK: `WORKSPACE#${workspaceId}`,
         },
-        UpdateExpression: `SET ${setExpressions.join(', ')}`,
-        ExpressionAttributeNames: Object.keys(exprAttrNames).length ? exprAttrNames : undefined,
-        ExpressionAttributeValues: exprAttrValues,
+        UpdateExpression: 'SET imageUrl = :imageUrl, updatedAt = :updatedAt',
+        ExpressionAttributeValues: {
+          ':imageUrl': imageUrl,
+          ':updatedAt': now,
+        },
         ReturnValues: 'ALL_NEW',
       }),
     )
@@ -97,10 +102,10 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         'content-type': 'application/json',
         'access-control-allow-origin': '*',
       },
-      body: JSON.stringify(result.Attributes ?? {}),
+      body: JSON.stringify(updateResult.Attributes ?? { imageUrl }),
     }
   } catch (err) {
-    console.error('update workspace error', err)
+    console.error('upload workspace image error', err)
     const statusCode = err instanceof UnauthorizedError ? 401 : 500
     const message = err instanceof UnauthorizedError ? err.message : 'Internal error'
     return {

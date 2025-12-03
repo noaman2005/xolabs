@@ -71,6 +71,7 @@ function normalizeTask(item: any): Task {
     status: (item.status as TaskStatus) ?? 'todo',
     assignedTo: item.assignedTo ?? null,
     dueDate: item.dueDate ?? null,
+    priority: item.priority ?? null,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   }
@@ -83,8 +84,9 @@ export async function createTask(params: {
   description?: string
   assignedTo?: string | null
   dueDate?: string | null
+  priority?: Task['priority']
 }): Promise<Task> {
-  const { workspaceId, channelId, title, description, assignedTo, dueDate } = params
+  const { workspaceId, channelId, title, description, assignedTo, dueDate, priority } = params
   const now = new Date().toISOString()
   const taskId = uuid()
 
@@ -99,6 +101,7 @@ export async function createTask(params: {
     status: 'todo',
     assignedTo: assignedTo ?? null,
     dueDate: dueDate ?? null,
+    priority: priority ?? null,
     createdAt: now,
     updatedAt: now,
   }
@@ -117,7 +120,7 @@ export async function updateTask(params: {
   taskId: string
   workspaceId: string
   channelId: string
-  updates: Partial<Pick<Task, 'title' | 'description' | 'status' | 'assignedTo' | 'dueDate'>>
+  updates: Partial<Pick<Task, 'title' | 'description' | 'status' | 'assignedTo' | 'dueDate' | 'priority'>>
 }): Promise<Task | null> {
   const { taskId, workspaceId, channelId, updates } = params
 
@@ -142,13 +145,14 @@ export async function updateTask(params: {
         SK: sk,
       },
       UpdateExpression:
-        'SET #title = :title, #description = :description, #status = :status, #assignedTo = :assignedTo, #dueDate = :dueDate, #updatedAt = :updatedAt',
+        'SET #title = :title, #description = :description, #status = :status, #assignedTo = :assignedTo, #dueDate = :dueDate, #priority = :priority, #updatedAt = :updatedAt',
       ExpressionAttributeNames: {
         '#title': 'title',
         '#description': 'description',
         '#status': 'status',
         '#assignedTo': 'assignedTo',
         '#dueDate': 'dueDate',
+        '#priority': 'priority',
         '#updatedAt': 'updatedAt',
       },
       ExpressionAttributeValues: {
@@ -157,6 +161,7 @@ export async function updateTask(params: {
         ':status': next.status,
         ':assignedTo': next.assignedTo ?? null,
         ':dueDate': next.dueDate ?? null,
+        ':priority': next.priority ?? null,
         ':updatedAt': next.updatedAt,
       },
     }),
