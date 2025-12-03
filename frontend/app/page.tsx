@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { LayoutDashboard, Users, Compass, Search as SearchIcon, X } from 'lucide-react'
+import { LayoutDashboard, Users, Compass, Search as SearchIcon, X, ExternalLink } from 'lucide-react'
 import { useApi } from '../lib/hooks/useApi'
 import { RequireAuth } from './components/require-auth'
 import { useAuth } from '../lib/hooks/useAuth'
@@ -296,7 +296,7 @@ function Sidebar({
       </div>
 
       {/* Top Navigation */}
-      <div className="mb-6 space-y-2">
+      <div className="mb-6 space-y-2 mt-2 border-t border-white/10 pt-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-300">Dashboard</h2>
           <button
@@ -368,8 +368,23 @@ function Sidebar({
         ))}
       </div>
 
+      {/* External Links */}
+      <div className="mt-4 pt-4">
+        <div className="mb-3 space-y-2">
+          <a
+            href="https://xo-labs.vercel.app"
+            target="_blank"
+            rel="noreferrer"
+            className="nav-item"
+          >
+            <ExternalLink className="h-5 w-5" />
+            <span className="font-medium">Landing page</span>
+          </a>
+        </div>
+      </div>
+
       {/* Profile & logout */}
-      <div className="mt-4 border-t border-white/10 pt-4">
+      <div className="mt-2 border-t border-white/10 pt-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 overflow-hidden">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white/[0.12] text-xs font-semibold text-gray-100">
