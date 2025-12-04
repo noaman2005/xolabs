@@ -24,6 +24,9 @@ import { TextChannelPanel } from "../../../lib/features/workspace/components/Tex
 import { WorkspaceServerRail } from "../../../lib/features/workspace/components/WorkspaceServerRail"
 import { WorkspaceChannelRail } from "../../../lib/features/workspace/components/WorkspaceChannelRail"
 import { WorkspaceImageModal } from "../../../lib/features/workspace/components/WorkspaceImageModal"
+import { WorkspaceMembersSidebar } from "../../../lib/features/workspace/components/WorkspaceMembersSidebar"
+import { WorkspaceChannelHeader } from "../../../lib/features/workspace/components/WorkspaceChannelHeader"
+
 import { getWorkspaceImageUrl, setWorkspaceImageUrl as persistWorkspaceImageUrl } from "../../../lib/features/workspace/useWorkspaceImage"
 
 export default function WorkspacePage() {
@@ -43,6 +46,9 @@ export default function WorkspacePage() {
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteModalOpen, setInviteModalOpen] = useState(false)
   const [imageModalOpen, setImageModalOpen] = useState(false)
+  const [membersOpen, setMembersOpen] = useState(false)
+  const [selectedMember, setSelectedMember] = useState<any | null>(null)
+
   const [workspaceImageUrl, setWorkspaceImageUrlState] = useState<string | null>(() => getWorkspaceImageUrl(workspaceId))
   const [voiceConnecting, setVoiceConnecting] = useState(false)
   const { user, idToken } = useAuth()
@@ -142,6 +148,21 @@ export default function WorkspacePage() {
   const isWorkspaceOwner = Boolean(
     workspace?.ownerEmail && user?.email && workspace.ownerEmail === user.email,
   )
+
+  const {
+    data: members,
+    isLoading: membersLoading,
+  } = useQuery({
+    queryKey: ["workspace-members", workspaceId],
+    queryFn: () => request(`/workspaces/${workspaceId}/members`),
+    enabled: !!workspaceId,
+    refetchInterval: 15000,
+  })
+
+  const totalMembers = Array.isArray(members) ? members.length : 0
+  const onlineMembers = Array.isArray(members)
+    ? members.filter((m: any) => m.presence === 'online').length
+    : 0
 
   const {
     data: channels,
@@ -314,37 +335,12 @@ export default function WorkspacePage() {
     <section className="glass-panel smooth-transition flex min-h-[calc(100vh-3.5rem)] flex-1 flex-col rounded-none px-4 py-4 lg:min-h-[unset] lg:rounded-3xl lg:px-8 lg:py-6">
       {activeChannel ? (
         <>
-          {/* Channel header bar */}
-          <div className="mb-4 flex flex-col gap-3 border-b border-white/[0.06] pb-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:pb-4">
-            <div className="space-y-1 min-w-0">
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                <span className="text-xs uppercase tracking-wider text-gray-600">Channel</span>
-                <span className="text-xs text-gray-500">/
-                  {(activeChannel.type as ChannelType) || 'text'}</span>
-              </div>
-              <h2 className="truncate text-base font-semibold text-gray-100 sm:text-xl sm:font-bold">
-                <span className="mr-1 text-gray-500">#</span>
-                {activeChannel.name ?? "untitled-channel"}
-              </h2>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 text-xs sm:gap-3">
-              <button className="smooth-transition inline-flex items-center gap-1 rounded-lg bg-white/[0.04] px-2 py-1 text-gray-400 ring-1 ring-white/[0.06] hover:bg-white/[0.08] hover:text-gray-200">
-                <Search className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Search</span>
-              </button>
-              <button className="smooth-transition inline-flex items-center gap-1 rounded-lg bg-white/[0.04] px-2 py-1 text-gray-400 ring-1 ring-white/[0.06] hover:bg-white/[0.08] hover:text-gray-200">
-                <UsersIcon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Members</span>
-              </button>
-              {isWorkspaceOwner && (
-                <button className="smooth-transition inline-flex items-center gap-1 rounded-lg bg-white/[0.04] px-2 py-1 text-gray-400 ring-1 ring-white/[0.06] hover:bg-white/[0.08] hover:text-gray-200">
-                  <Settings className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Settings</span>
-                </button>
-              )}
-            </div>
-          </div>
+          <WorkspaceChannelHeader
+            activeChannel={activeChannel}
+            isWorkspaceOwner={isWorkspaceOwner}
+            membersOpen={membersOpen}
+            onToggleMembers={() => setMembersOpen((open) => !open)}
+          />
 
           {(activeChannel.type as ChannelType) === 'voice' ? (
             <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -385,17 +381,33 @@ export default function WorkspacePage() {
               />
             </div>
           ) : (
-            <TextChannelPanel
-              messages={messages}
-              isLoading={messagesLoading}
-              messageText={messageText}
-              setMessageText={setMessageText}
-              onSend={() => {
-                if (!messageText.trim() || sendMessage.isPending) return
-                sendMessage.mutate(messageText.trim())
-              }}
-              isSending={sendMessage.isPending}
-            />
+            <div className="flex min-h-0 flex-1 gap-4">
+              <div className="flex min-h-0 flex-1 flex-col">
+                <TextChannelPanel
+                  messages={messages}
+                  isLoading={messagesLoading}
+                  messageText={messageText}
+                  setMessageText={setMessageText}
+                  onSend={() => {
+                    if (!messageText.trim() || sendMessage.isPending) return
+                    sendMessage.mutate(messageText.trim())
+                  }}
+                  isSending={sendMessage.isPending}
+                />
+              </div>
+              <WorkspaceMembersSidebar
+                members={Array.isArray(members) ? (members as any[]) : null}
+                isOpen={membersOpen}
+                isLoading={membersLoading}
+                currentUserEmail={user?.email ?? null}
+                onlineCount={onlineMembers}
+                totalCount={totalMembers}
+                selectedMember={selectedMember}
+                onMemberClick={(m) => setSelectedMember(m)}
+                onClose={() => setMembersOpen(false)}
+                onSelectedMemberClose={() => setSelectedMember(null)}
+              />
+            </div>
           )}
         </>
       ) : (

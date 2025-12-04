@@ -332,6 +332,27 @@ Resources:
             Path: /workspaces/{workspaceId}/channels
             Method: post
 
+  WorkspaceMembersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/workspace-members.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        GetWorkspaceMembers:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /workspaces/{workspaceId}/members
+            Method: get
+
   UpdateWorkspaceChannelFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -544,6 +565,27 @@ Resources:
             RestApiId: !Ref RestApi
             Path: /friends
             Method: post
+
+  FriendsRemoveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/friends-remove.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        RemoveFriend:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /friends/{username}
+            Method: delete
 
 Outputs:
   RestApiUrl:
