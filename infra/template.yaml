@@ -437,6 +437,114 @@ Resources:
             Path: /workspaces/{workspaceId}/channels/{channelId}/messages
             Method: post
 
+  ProfileGetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/profile-get.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        GetProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /profile
+            Method: get
+
+  ProfilePutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/profile-put.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        PutProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /profile
+            Method: put
+
+  ProfileAvatarUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/profile-avatar-upload.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+        - S3CrudPolicy:
+            BucketName: !Ref AvatarsBucket
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+          AVATARS_BUCKET: !Ref AvatarsBucket
+      Events:
+        UploadProfileAvatar:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /profile/avatar
+            Method: post
+
+  FriendsListFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/friends-list.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        GetFriends:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /friends
+            Method: get
+
+  FriendsAddFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../backend
+      Handler: dist/handlers/http/friends-add.handler
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref XoLabsTable
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref XoLabsTable
+          USER_POOL_ID: !Ref XoUserPool
+          USER_POOL_CLIENT_ID: !Ref XoUserPoolClient
+      Events:
+        AddFriend:
+          Type: Api
+          Properties:
+            RestApiId: !Ref RestApi
+            Path: /friends
+            Method: post
+
 Outputs:
   RestApiUrl:
     Description: Base URL for REST API
