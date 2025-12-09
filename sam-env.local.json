@@ -1,0 +1,132 @@
+{
+  "Parameters": {
+    "Environment": "dev"
+  },
+
+  "AuthFunction": {
+    "Environment": {
+      "Variables": {
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "AuthSignupFunction": {
+    "Environment": {
+      "Variables": {
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "AuthLoginFunction": {
+    "Environment": {
+      "Variables": {
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "AuthRefreshFunction": {
+    "Environment": {
+      "Variables": {
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "ProfileGetFunction": {
+    "Environment": {
+      "Variables": {
+        "TABLE_NAME": "XoLabsTable-dev",
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "FriendsListFunction": {
+    "Environment": {
+      "Variables": {
+        "TABLE_NAME": "XoLabsTable-dev",
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "FriendsAddFunction": {
+    "Environment": {
+      "Variables": {
+        "TABLE_NAME": "XoLabsTable-dev",
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "SocialPostsListFunction": {
+    "Environment": {
+      "Variables": {
+        "TABLE_NAME": "XoLabsTable-dev",
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "SocialPostsCreateFunction": {
+    "Environment": {
+      "Variables": {
+        "TABLE_NAME": "XoLabsTable-dev",
+        "AVATARS_BUCKET": "xolabs-user-avatars-dev",
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "SocialThreadsListFunction": {
+    "Environment": {
+      "Variables": {
+        "TABLE_NAME": "XoLabsTable-dev",
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "SocialThreadsUpsertFunction": {
+    "Environment": {
+      "Variables": {
+        "TABLE_NAME": "XoLabsTable-dev",
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "SocialMessagesListFunction": {
+    "Environment": {
+      "Variables": {
+        "TABLE_NAME": "XoLabsTable-dev",
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  },
+
+  "SocialMessagesCreateFunction": {
+    "Environment": {
+      "Variables": {
+        "TABLE_NAME": "XoLabsTable-dev",
+        "USER_POOL_ID": "us-east-1_gvGBK9Top",
+        "USER_POOL_CLIENT_ID": "7j0evc7umb19390b8vkbfmk"
+      }
+    }
+  }
+}

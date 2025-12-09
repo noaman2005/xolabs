@@ -36,9 +36,13 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       avatarUrl: typeof item.avatarUrl === 'string' ? (item.avatarUrl as string) : null,
       statusMessage: typeof item.statusMessage === 'string' ? (item.statusMessage as string) : '',
       presence:
-        item.presence === 'online' || item.presence === 'idle' || item.presence === 'dnd' || item.presence === 'offline'
+        item.presence === 'online' ||
+        item.presence === 'idle' ||
+        item.presence === 'dnd' ||
+        item.presence === 'offline'
           ? item.presence
           : 'online',
+      sub: user.sub,
       themePreference:
         item.themePreference === 'system' ||
         item.themePreference === 'light' ||

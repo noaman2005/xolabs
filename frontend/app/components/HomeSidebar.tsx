@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useQuery } from "@tanstack/react-query"
-import { LayoutDashboard, Users, Compass, Search as SearchIcon, X, ExternalLink } from "lucide-react"
+import { LayoutDashboard, Users, Compass, Search as SearchIcon, X, ExternalLink, MessageCircle } from "lucide-react"
 import React from "react"
 
 import { useApi } from "../../lib/hooks/useApi"
@@ -141,6 +141,14 @@ export function Sidebar({
           active={activeSection === "workspaces"}
           onClick={() => onSectionChange("workspaces")}
         />
+      </div>
+
+      {/* Social Section (separate route) */}
+      <div className="mb-4 space-y-2">
+        <Link href="/social" className="nav-item">
+          <MessageCircle className="h-5 w-5" />
+          <span className="font-medium">Social</span>
+        </Link>
       </div>
 
       {/* Search */}
