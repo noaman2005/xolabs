@@ -1,6 +1,7 @@
 "use client"
 
 import type { ReactNode } from "react"
+import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 
 import { RequireAuth } from "../components/require-auth"
@@ -84,7 +85,7 @@ export default function SocialLayout({ children }: { children: ReactNode }) {
 
   return (
     <RequireAuth>
-      <main className="mx-auto grid min-h-screen w-full grid-cols-1 gap-4 px-4 pb-6 pt-4 lg:grid-cols-[380px,minmax(0,1.3fr),380px] lg:px-8">
+      <main className="mx-auto grid min-h-screen w-full grid-cols-1 gap-4 px-4 pb-20 pt-4 lg:grid-cols-[380px,minmax(0,1.3fr),380px] lg:px-8 lg:pb-6">
         <aside className="sticky top-0 hidden h-[calc(100vh-2rem)] flex-col gap-3 text-xs text-gray-400 lg:flex">
           <BrandCard />
 
@@ -158,12 +159,69 @@ export default function SocialLayout({ children }: { children: ReactNode }) {
         </div>
 
         <aside className="sticky top-0 hidden h-[calc(100vh-2rem)] flex-col gap-3 overflow-y-auto text-xs text-gray-400 lg:flex">
-          <div className="glass-panel rounded-2xl border border-white/10 bg-black/70 p-3">
-            <p className="text-[11px] font-semibold text-gray-200">DM tips</p>
-            <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px] text-gray-500">
-              <li>Only friends can DM for now.</li>
-              <li>Start chats from the friends list.</li>
-              <li>Use messages for deeper collabs.</li>
+          <div className="glass-panel rounded-2xl border border-white/10 bg-black/70 px-4 py-3.5">
+            <p className="text-[14px] font-semibold text-gray-100">Suggested friends</p>
+            {Array.isArray(friends) && friends.length > 0 ? (
+              <ul className="mt-2 space-y-2.5 text-[13px] text-gray-200">
+                {friends.slice(0, 6).map((f: any) => {
+                  const name = (f.displayName as string) || (f.username as string) || "Friend"
+                  const handle = (f.username as string) || (f.sub as string) || "user"
+                  const avatar = typeof f.avatarUrl === "string" ? (f.avatarUrl as string) : null
+                  const initials = name
+                    .split(/[._-\s]/)
+                    .filter(Boolean)
+                    .map((p: string) => p[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()
+                  return (
+                    <li key={handle} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-white/[0.06]">
+                      <span className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-white/[0.12] text-[12px] font-semibold">
+                        {avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={avatar} alt={name} className="h-full w-full object-cover" />
+                        ) : (
+                          <>{initials}</>
+                        )}
+                      </span>
+                      <div className="min-w-0">
+                        <Link
+                          href={`/social/profile/${f.sub || f.username}`}
+                          className="max-w-[40%] truncate font-semibold text-gray-100 hover:text-accent"
+                        >
+                          {f.displayName || f.username}
+                        </Link>
+                        <Link
+                          href={`/social/profile/${f.sub || f.username}`}
+                          className="truncate text-[11px] text-gray-500 hover:text-accent"
+                        >
+                          @{f.username}
+                        </Link>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : (
+              <p className="mt-2 text-[13px] text-gray-500">No suggestions right now. Add friends to see them here.</p>
+            )}
+          </div>
+
+          <div className="glass-panel rounded-2xl border border-white/10 bg-black/70 px-4 py-3.5">
+            <p className="text-[14px] font-semibold text-gray-100">Tips</p>
+            <ul className="mt-2 space-y-1.5 text-[13px] text-gray-300 list-disc list-inside">
+              <li>Tag teammates with @ for quick loops.</li>
+              <li>Share updates with a title + image for clarity.</li>
+              <li>Use messages for focused threads.</li>
+            </ul>
+          </div>
+
+          <div className="glass-panel rounded-2xl border border-white/10 bg-black/70 px-4 py-3.5">
+            <p className="text-[14px] font-semibold text-gray-100">Upcoming features</p>
+            <ul className="mt-2 space-y-1.5 text-[13px] text-gray-300 list-disc list-inside">
+              <li>Threaded comments</li>
+              <li>Rich embeds and polls</li>
+              <li>Workspace-wide announcements</li>
             </ul>
           </div>
         </aside>

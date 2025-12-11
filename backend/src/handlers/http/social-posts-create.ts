@@ -1,7 +1,7 @@
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { DynamoDBDocumentClient, PutCommand, GetCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb'
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { v4 as uuid } from 'uuid'
 import { requireUser, UnauthorizedError } from '../../lib/auth/requireUser.js'
 
@@ -10,6 +10,20 @@ const s3 = new S3Client({})
 
 const TABLE_NAME = process.env.TABLE_NAME as string
 const AVATARS_BUCKET = process.env.AVATARS_BUCKET as string | undefined
+
+function extractKeyFromUrl(url?: string | null) {
+  if (!url || !AVATARS_BUCKET) return null
+  try {
+    const u = new URL(url)
+    const path = u.pathname.startsWith('/') ? u.pathname.slice(1) : u.pathname
+    if (path.startsWith(AVATARS_BUCKET)) {
+      return path.replace(`${AVATARS_BUCKET}/`, '')
+    }
+    return path
+  } catch {
+    return null
+  }
+}
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
@@ -59,6 +73,16 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 
         imageUrl = `https://${AVATARS_BUCKET}.s3.amazonaws.com/${key}`
       }
+    }
+
+    const replaceKey = extractKeyFromUrl(body?.replaceImageUrl)
+    if (replaceKey) {
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: AVATARS_BUCKET,
+          Key: replaceKey,
+        }),
+      )
     }
 
     const id = uuid()

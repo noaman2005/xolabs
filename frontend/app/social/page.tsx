@@ -1,7 +1,9 @@
 ﻿"use client"
 
+import Link from "next/link"
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Heart, MessageCircle, Share2 } from "lucide-react"
 
 import { useAuth } from "../../lib/hooks/useAuth"
 import { useApi } from "../../lib/hooks/useApi"
@@ -10,6 +12,9 @@ export default function SocialPage() {
   const { user } = useAuth()
   const { request } = useApi()
   const queryClient = useQueryClient()
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
+  const [expandedCaptions, setExpandedCaptions] = useState<Record<string, boolean>>({})
+  const [previewExpanded, setPreviewExpanded] = useState(false)
 
   const [composerOpen, setComposerOpen] = useState(false)
   const [title, setTitle] = useState("")
@@ -92,6 +97,13 @@ export default function SocialPage() {
       )
     }
 
+    const truncateCaption = (text: string, maxWords = 180) => {
+      if (!text) return ""
+      const words = text.split(/\s+/)
+      if (words.length <= maxWords) return text
+      return `${words.slice(0, maxWords).join(" ")}…`
+    }
+
     return posts.map((post: any) => {
       const email = typeof post.authorEmail === "string" ? post.authorEmail : ""
       const authorSub = typeof post.authorSub === "string" ? post.authorSub : null
@@ -100,6 +112,7 @@ export default function SocialPage() {
       const titleValue = typeof post.title === "string" && post.title.trim() ? post.title.trim() : "Untitled"
       const captionValue = typeof post.caption === "string" ? post.caption : ""
       const imageUrl = typeof post.imageUrl === "string" ? post.imageUrl : null
+      const postId = (post.id as string) || `${titleValue}-${authorSub || email}`
 
       let timeLabel = "Just now"
       let dateLabel = ""
@@ -161,6 +174,23 @@ export default function SocialPage() {
         .slice(0, 2)
         .toUpperCase()
 
+      const liked = likedIds.has(postId)
+      const baseLikeCount = typeof post.likeCount === "number" ? post.likeCount : 0
+      const likeCountDisplay = baseLikeCount + (liked ? 1 : 0)
+      const commentCountDisplay = typeof post.commentCount === "number" ? post.commentCount : 0
+      const truncatedCaption = truncateCaption(captionValue)
+      const isTruncated = truncatedCaption !== captionValue
+      const expanded = expandedCaptions[postId] ?? false
+
+      const toggleLike = () => {
+        setLikedIds((prev) => {
+          const next = new Set(prev)
+          if (next.has(postId)) next.delete(postId)
+          else next.add(postId)
+          return next
+        })
+      }
+
       return (
         <article
           key={post.id}
@@ -182,23 +212,57 @@ export default function SocialPage() {
 
             <div className="min-w-0 flex-1 space-y-2">
               <header className="flex items-center gap-2 text-xs">
-                <span className="max-w-[40%] truncate font-semibold text-gray-100">{displayName || username}</span>
-                <span className="truncate text-[11px] text-gray-500">@{username}</span>
+                <Link
+                  href={`/social/profile/${authorSub || username}`}
+                  className="max-w-[40%] truncate font-semibold text-gray-100 hover:text-accent"
+                >
+                  {displayName || username}
+                </Link>
+                <Link
+                  href={`/social/profile/${authorSub || username}`}
+                  className="truncate text-[11px] text-gray-500 hover:text-accent"
+                >
+                  @{username}
+                </Link>
                 <span className="flex-shrink-0 text-[11px] text-gray-500">· {dateLabel || timeLabel}</span>
               </header>
 
               <div className="space-y-2 text-sm">
                 <h2 className="text-sm font-semibold text-gray-100">{titleValue}</h2>
                 {captionValue && (
-                  <p className="text-[13px] leading-snug text-gray-100 whitespace-pre-line">{captionValue}</p>
+                  <div className="space-y-1">
+                    <p
+                      className={`break-words whitespace-pre-wrap text-[13px] leading-relaxed text-gray-100 pr-1 ${
+                        expanded ? "" : "line-clamp-6"
+                      }`}
+                    >
+                      {expanded ? captionValue : truncatedCaption}
+                    </p>
+                    {isTruncated && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedCaptions((prev) => ({
+                            ...prev,
+                            [postId]: !expanded,
+                          }))
+                        }
+                        className="text-[11px] font-semibold text-accent hover:text-accent/80"
+                      >
+                        {expanded ? "Show less" : "Read more"}
+                      </button>
+                    )}
+                  </div>
                 )}
                 {imageUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={imageUrl}
-                    alt={captionValue || titleValue}
-                    className="max-h-80 w-full rounded-2xl border border-white/[0.06] object-cover"
-                  />
+                  <div className="overflow-hidden rounded-2xl border border-white/[0.06] bg-black/40">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imageUrl}
+                      alt={captionValue || titleValue}
+                      className="h-full max-h-[420px] min-h-[200px] w-full object-cover"
+                    />
+                  </div>
                 )}
               </div>
 
@@ -206,49 +270,29 @@ export default function SocialPage() {
                 <div className="flex items-center gap-4">
                   <button
                     type="button"
-                    className="smooth-transition flex items-center gap-1 rounded-full px-2 py-1 hover:bg-white/[0.06] hover:text-gray-100"
+                    onClick={() => console.log("open comments", postId)}
+                    className="smooth-transition flex items-center gap-1.5 rounded-full px-3 py-2 hover:bg-white/[0.06] hover:text-gray-100"
                   >
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 24 24"
-                      className="h-4 w-4 stroke-current"
-                      fill="none"
-                      strokeWidth="1.6"
-                    >
-                      <path d="M4 5h16a1 1 0 0 1 1 1v9.5a1 1 0 0 1-1 1H8.5L4 20V6a1 1 0 0 1 1-1Z" />
-                    </svg>
-                    <span>{typeof post.commentCount === "number" ? post.commentCount : 0}</span>
+                    <MessageCircle className="h-5 w-5" />
+                    <span className="text-[12px]">{commentCountDisplay}</span>
                   </button>
                   <button
                     type="button"
-                    className="smooth-transition flex items-center gap-1 rounded-full px-2 py-1 hover:bg-white/[0.06] hover:text-gray-100"
+                    onClick={toggleLike}
+                    className={`smooth-transition flex items-center gap-1.5 rounded-full px-3 py-2 hover:bg-white/[0.06] hover:text-gray-100 ${
+                      liked ? "text-rose-400" : ""
+                    }`}
                   >
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 24 24"
-                      className="h-4 w-4 stroke-current"
-                      fill="none"
-                      strokeWidth="1.6"
-                    >
-                      <path d="M12.1 19.3 12 19.4l-.1-.1C7.1 15.1 4 12.3 4 8.9 4 6.8 5.5 5.3 7.6 5.3c1.3 0 2.6.7 3.4 1.9.8-1.2 2.1-1.9 3.4-1.9 2.1 0 3.6 1.5 3.6 3.6 0 3.4-3.1 6.2-7.9 10.4Z" />
-                    </svg>
-                    <span>{typeof post.likeCount === "number" ? post.likeCount : 0}</span>
+                    <Heart className="h-5 w-5" fill={liked ? "currentColor" : "none"} />
+                    <span className="text-[12px]">{likeCountDisplay}</span>
                   </button>
                   <button
                     type="button"
-                    className="smooth-transition flex items-center gap-1 rounded-full px-2 py-1 hover:bg-white/[0.06] hover:text-gray-100"
+                    onClick={() => console.log("share", postId)}
+                    className="smooth-transition flex items-center gap-1.5 rounded-full px-3 py-2 hover:bg-white/[0.06] hover:text-gray-100"
                   >
-                    <svg
-                      aria-hidden="true"
-                      viewBox="0 0 24 24"
-                      className="h-4 w-4 stroke-current"
-                      fill="none"
-                      strokeWidth="1.6"
-                    >
-                      <path d="M5 12h9" />
-                      <path d="M12 5 19 12 12 19" />
-                    </svg>
-                    <span>Share</span>
+                    <Share2 className="h-5 w-5" />
+                    <span className="text-[12px]">Share</span>
                   </button>
                 </div>
                 <span className="text-[10px] uppercase tracking-wide text-gray-600">Prototype</span>
@@ -328,6 +372,7 @@ export default function SocialPage() {
                     value={caption}
                     onChange={(e) => {
                       setCaption(e.target.value)
+                      setPreviewExpanded(false)
                       if (error) setError(null)
                     }}
                     rows={3}
@@ -361,9 +406,29 @@ export default function SocialPage() {
                 {(caption.trim() || previewUrl) && (
                   <div className="mt-1 rounded-2xl border border-white/10 bg-black/70 p-2 text-[11px]">
                     <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">Preview</p>
-                    {caption.trim() && (
-                      <p className="mb-2 whitespace-pre-line text-gray-100">{caption}</p>
-                    )}
+                    {caption.trim() && (() => {
+                      const text = caption.trim()
+                      const words = text.split(/\s+/)
+                      const maxWords = 120
+                      const truncated = words.length > maxWords ? `${words.slice(0, maxWords).join(" ")}…` : text
+                      const showTruncateToggle = words.length > maxWords
+                      return (
+                        <div className="mb-2 space-y-1">
+                          <p className="whitespace-pre-wrap break-words text-gray-100">
+                            {previewExpanded ? text : truncated}
+                          </p>
+                          {showTruncateToggle && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewExpanded((prev) => !prev)}
+                              className="text-[10px] font-semibold text-accent hover:text-accent/80"
+                            >
+                              {previewExpanded ? "Show less" : "Read more"}
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })()}
                     {previewUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img

@@ -1,7 +1,7 @@
 import type { APIGatewayProxyHandlerV2 } from 'aws-lambda'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocumentClient, UpdateCommand } from '@aws-sdk/lib-dynamodb'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { DynamoDBDocumentClient, UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb'
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { requireUser, UnauthorizedError } from '../../lib/auth/requireUser.js'
 
 const ddb = DynamoDBDocumentClient.from(new DynamoDBClient({}))
@@ -9,6 +9,20 @@ const s3 = new S3Client({})
 
 const TABLE_NAME = process.env.TABLE_NAME as string
 const AVATARS_BUCKET = process.env.AVATARS_BUCKET as string
+
+function extractKeyFromUrl(url?: string | null) {
+  if (!url || !AVATARS_BUCKET) return null
+  try {
+    const u = new URL(url)
+    const path = u.pathname.startsWith('/') ? u.pathname.slice(1) : u.pathname
+    if (path.startsWith(AVATARS_BUCKET)) {
+      return path.replace(`${AVATARS_BUCKET}/`, '')
+    }
+    return path
+  } catch {
+    return null
+  }
+}
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
@@ -34,6 +48,14 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     const key = `users/${user.sub}/${Date.now()}-${safeFileName}`
 
     const buffer = Buffer.from(data, 'base64')
+
+    const existing = await ddb.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { PK: 'USER', SK: `USER#${user.sub}` },
+      }),
+    )
+    const oldKey = extractKeyFromUrl(existing.Item?.avatarUrl)
 
     await s3.send(
       new PutObjectCommand({
@@ -61,6 +83,15 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
         },
       }),
     )
+
+    if (oldKey) {
+      await s3.send(
+        new DeleteObjectCommand({
+          Bucket: AVATARS_BUCKET,
+          Key: oldKey,
+        }),
+      )
+    }
 
     return {
       statusCode: 200,

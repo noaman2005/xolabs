@@ -36,18 +36,29 @@ function writeStoredAuth(next: StoredAuth | null) {
 export function useApi() {
   const request = async (path: string, init?: RequestInit, allowRefresh: boolean = true): Promise<any> => {
     const stored = readStoredAuth()
-    let idToken = stored?.idToken ?? null
+    // Prefer ID token for Cognito-authorized APIs; fall back to access token if needed
+    let bearer = stored?.idToken ?? stored?.accessToken ?? null
 
     const headers: HeadersInit = {
-      'content-type': 'application/json',
       ...(init?.headers || {}),
     }
-
-    if (idToken) {
-      ;(headers as any).authorization = `Bearer ${idToken}`
+    // Only send content-type when we actually have a body or non-GET
+    const method = (init?.method || 'GET').toUpperCase()
+    if (method !== 'GET' || init?.body) {
+      ;(headers as any)['content-type'] = (headers as any)['content-type'] || 'application/json'
     }
 
-    const res = await fetch(`${API_URL}${path}`, {
+    if (bearer) {
+      ;(headers as any).authorization = `Bearer ${bearer}`
+    }
+    if (process.env.NEXT_PUBLIC_API_KEY) {
+      ;(headers as any)['x-api-key'] = process.env.NEXT_PUBLIC_API_KEY
+    }
+
+    const useProxy = typeof window !== 'undefined' && API_URL?.startsWith('http')
+    const targetUrl = useProxy ? `/api/proxy${path}` : `${API_URL}${path}`
+
+    const res = await fetch(targetUrl, {
       ...init,
       headers,
     })

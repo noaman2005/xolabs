@@ -3,13 +3,22 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useQuery } from "@tanstack/react-query"
-import { LayoutDashboard, Users, Compass, Search as SearchIcon, X, ExternalLink, MessageCircle } from "lucide-react"
+import {
+  LayoutDashboard,
+  Users,
+  Compass,
+  Rocket,
+  X,
+  ExternalLink,
+  MessageCircle,
+  Sparkles,
+} from "lucide-react"
 import React from "react"
 
 import { useApi } from "../../lib/hooks/useApi"
 import type { WorkspaceItem } from "../page"
 
-export type HomeSection = "dashboard" | "friends" | "workspaces" | "search"
+export type HomeSection = "dashboard" | "friends" | "workspaces"
 
 type NavItemProps = {
   icon: React.ReactNode
@@ -23,10 +32,15 @@ function NavItem({ icon, label, active, onClick }: NavItemProps) {
     <button
       type="button"
       onClick={onClick}
-      className={`nav-item${active ? " nav-item-active" : ""}`}
+        className={`nav-item relative overflow-hidden focus:outline-none ${
+        active
+          ? "nav-item-active bg-white/10 text-white border border-accent/50 shadow-[0_0_0_1px_rgba(99,102,241,0.35)]"
+          : "text-gray-200 hover:bg-white/[0.08]"
+      }`}
     >
       {icon}
       <span className="font-medium">{label}</span>
+      {active ? <span className="absolute inset-y-1 left-1 w-1 rounded-full bg-accent" /> : null}
     </button>
   )
 }
@@ -95,18 +109,20 @@ export function Sidebar({
     <aside
       className={`glass-sidebar ${
         isOpen ? "flex" : "hidden"
-      } fixed inset-y-0 left-0 z-40 w-72 flex-col border-b border-white/[0.12] px-4 py-4 lg:static lg:flex lg:w-64 lg:border-b-0 lg:px-6 lg:py-6`}
+      } fixed inset-y-0 left-0 z-40 w-72 flex-col border-b border-white/[0.12] bg-gradient-to-b from-black/75 via-slate-950/80 to-black/60 px-4 py-5 shadow-2xl lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:border-b-0 lg:px-6 lg:py-6`}
     >
       {/* Brand logo */}
-      <div className="mb-4 flex items-center justify-center">
-        <div className="relative h-8 w-8">
-          <Image src="/logo.png" alt="XO Labs" fill className="object-contain" />
+      <div className="mb-5 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-white/10 bg-white/10">
+            <Image src="/logo.png" alt="XO Labs" fill className="object-contain" />
+          </div>
+          <div className="leading-tight">
+            <p className="text-sm font-semibold text-gray-50">XO Labs</p>
+            <p className="text-[11px] text-gray-400">Collaborate boldly</p>
+          </div>
         </div>
-      </div>
-
-      {/* Top Navigation */}
-      <div className="mb-6 space-y-2 mt-2 border-t border-white/10 pt-4">
-        <div className="flex items-center justify-between">
+        {onClose ? (
           <button
             type="button"
             onClick={onClose}
@@ -114,7 +130,12 @@ export function Sidebar({
           >
             <X className="h-5 w-5" />
           </button>
-        </div>
+        ) : null}
+      </div>
+
+      {/* Top Navigation */}
+      <div className="mb-4 space-y-2 mt-1">
+        <div className="text-[11px] uppercase tracking-[0.08em] text-gray-500">Navigate</div>
         <NavItem
           icon={<LayoutDashboard className="h-5 w-5" />}
           label="Dashboard"
@@ -125,6 +146,7 @@ export function Sidebar({
 
       {/* Friends Section */}
       <div className="mb-4 space-y-2">
+        <div className="text-[11px] uppercase tracking-[0.08em] text-gray-500">People</div>
         <NavItem
           icon={<Users className="h-5 w-5" />}
           label="Friends"
@@ -135,6 +157,10 @@ export function Sidebar({
 
       {/* Workspaces Section */}
       <div className="mb-4 space-y-2">
+        <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.08em] text-gray-500">
+          <span>Workspaces</span>
+          <Sparkles className="h-4 w-4 text-accent" />
+        </div>
         <NavItem
           icon={<Compass className="h-5 w-5" />}
           label="Workspaces"
@@ -151,14 +177,12 @@ export function Sidebar({
         </Link>
       </div>
 
-      {/* Search */}
+      {/* Projects (GitHub) */}
       <div className="mb-6">
-        <NavItem
-          icon={<SearchIcon className="h-5 w-5" />}
-          label="Search"
-          active={activeSection === "search"}
-          onClick={() => onSectionChange("search")}
-        />
+        <Link href="/projects" className="nav-item">
+          <Rocket className="h-5 w-5" />
+          <span className="font-medium">Projects</span>
+        </Link>
       </div>
 
       {/* Workspaces list in sidebar */}

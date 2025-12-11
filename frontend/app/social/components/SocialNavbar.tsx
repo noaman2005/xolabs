@@ -10,7 +10,7 @@ export function SocialNavbar() {
     { href: "/social", label: "Home" },
     { href: "/social/messages", label: "Messages" },
     { href: "/social/create", label: "Create" },
-    { href: "/profile", label: "Profile" },
+    { href: "/social/profile/me", label: "Profile" },
   ] as const
 
   return (
