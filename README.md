@@ -69,6 +69,23 @@ Located in `frontend/`.
   - Custom `useAuth` hook storing tokens in `localStorage`
   - Protected dashboard routes via `RequireAuth` wrapper
 
+- **Projects**
+  - Full projects dashboard with search/filter/sort, pinning, analytics, and recent projects widget on home
+  - Project cards support edit/delete, status, tags/tech stack, and presigned S3 cover/screenshot uploads
+
+- **Social**
+  - Social feed with create/list posts, image uploads (S3 presigned) and recent activity widget on home
+  - Friends list and presence (online/idle/dnd/offline) with shared-workspace context
+
+- **Command Palette**
+  - Global command palette (Ctrl/Cmd+K) with top-right floating trigger and keyboard shortcut
+  - Actions to jump to projects, social, workspaces, and quick-create flows
+
+- **Dashboard & Navigation**
+  - Refreshed sidebar (branding, grouped nav, active pill)
+  - Dashboard widgets: hero, quick actions, stats (workspaces/friends), recent projects, social activity, mini-graph placeholder
+  - Mobile bottom nav (Home/Work/Friends/Projects/Profile) for consistent navigation across pages
+
 - **Workspaces & Channels**
   - Discord-style layout (workspace sidebar, channels, main panel)
   - Channel types: `text`, `voice`, `tasks`, `board`
