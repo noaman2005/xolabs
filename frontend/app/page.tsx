@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApi } from '../lib/hooks/useApi'
 import { RequireAuth } from './components/require-auth'
 import { useAuth } from '../lib/hooks/useAuth'
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Sidebar, type HomeSection } from './components/HomeSidebar'
 import { HomeFriendsPanel } from './components/HomeFriendsPanel'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -23,7 +23,7 @@ export type WorkspaceItem = {
   members?: string[] | null
 }
 
-export default function HomePage() {
+function HomePageInner() {
   const { request } = useApi()
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -612,5 +612,15 @@ export default function HomePage() {
       )}
 
     </RequireAuth>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={null}>
+      <RequireAuth>
+        <HomePageInner />
+      </RequireAuth>
+    </Suspense>
   )
 }

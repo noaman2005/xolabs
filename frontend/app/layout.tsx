@@ -1,5 +1,6 @@
 import "./globals.css"
 import type { ReactNode } from "react"
+import { Suspense } from "react"
 import { AppProviders } from "./providers"
 import { GlobalOverlays } from "./components/GlobalOverlays"
 import { GlobalMobileNav } from "./components/GlobalMobileNav"
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           {children}
           <GlobalOverlays />
         </AppProviders>
-        <GlobalMobileNav />
+        <Suspense fallback={null}>
+          <GlobalMobileNav />
+        </Suspense>
       </body>
     </html>
   )
