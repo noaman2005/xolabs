@@ -3,6 +3,6 @@
     "@aws-sdk/client-s3": "^3.948.0"
   },
   "devDependencies": {
-    "eslint-plugin-next": "^15.5.6"
+    "eslint-plugin-next": "^0.0.0"
   }
 }
